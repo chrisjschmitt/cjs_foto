@@ -79,3 +79,25 @@ export interface ArtworkItem {
   className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
 />
 ```
+
+## Uploading Photos via the Admin Page
+
+The site includes an admin page at `/admin` where you can upload photos directly through the browser.
+
+### Setup
+
+1. In your Vercel project, go to **Storage** and create a new **Blob** store.
+2. Vercel will automatically add the `BLOB_READ_WRITE_TOKEN` environment variable to your project.
+3. For local development, copy the token to a `.env.local` file:
+
+```
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+```
+
+### Usage
+
+1. Navigate to `/admin` on your deployed site (or `http://localhost:3000/admin` locally).
+2. Fill in the title, category, year, and description.
+3. Select an image file and click **Upload Artwork**.
+4. The image is stored in Vercel Blob and appears on the main portfolio page automatically.
+5. You can delete uploaded artwork from the admin page.
