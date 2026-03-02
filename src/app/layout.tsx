@@ -16,6 +16,9 @@ export const metadata: Metadata = {
   title: "CJS Foto — Artist Portfolio",
   description:
     "Explore the artwork portfolio of CJS — a curated collection of photographs and visual art.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({
