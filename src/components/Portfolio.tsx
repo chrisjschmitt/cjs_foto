@@ -21,7 +21,7 @@ const artworks: ArtworkItem[] = [
     category: "Macro",
     year: "2025",
     description: "Copper heatpipes and aluminum fins — the hidden architecture of computing.",
-    image: "/photos/copper-veins.jpg",
+    image: "/photos/copper-veins.JPG",
     href: "#",
   },
   {
