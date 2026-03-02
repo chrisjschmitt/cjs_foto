@@ -9,13 +9,23 @@ export interface ArtworkItem {
   category: string;
   year: string;
   description: string;
-  gradient: string;
+  image?: string;
+  gradient?: string;
   href: string;
 }
 
 const artworks: ArtworkItem[] = [
   {
     id: 1,
+    title: "Copper Veins",
+    category: "Macro",
+    year: "2025",
+    description: "Copper heatpipes and aluminum fins — the hidden architecture of computing.",
+    image: "/photos/copper-veins.jpg",
+    href: "#",
+  },
+  {
+    id: 2,
     title: "Morning Stillness",
     category: "Landscape",
     year: "2025",
@@ -24,7 +34,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 2,
+    id: 3,
     title: "Urban Geometry",
     category: "Architecture",
     year: "2025",
@@ -33,7 +43,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 3,
+    id: 4,
     title: "Verdant Whisper",
     category: "Nature",
     year: "2024",
@@ -42,7 +52,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 4,
+    id: 5,
     title: "Solitude in Blue",
     category: "Abstract",
     year: "2024",
@@ -51,7 +61,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 5,
+    id: 6,
     title: "Golden Hour",
     category: "Portrait",
     year: "2024",
@@ -60,7 +70,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 6,
+    id: 7,
     title: "Nocturne",
     category: "Landscape",
     year: "2023",
