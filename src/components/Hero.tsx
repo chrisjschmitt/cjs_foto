@@ -11,7 +11,7 @@ export default function Hero() {
           Visual Art &amp; Photography
         </p>
         <h1 className="font-serif text-6xl font-light leading-tight tracking-tight text-warm-900 sm:text-7xl lg:text-8xl">
-          CJS Foto
+          Christopher Schmitt Photographs
         </h1>
         <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-warm-600">
           A curated collection of moments, textures, and light — captured

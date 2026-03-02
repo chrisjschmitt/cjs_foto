@@ -13,12 +13,9 @@ const playfair = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "CJS Foto — Artist Portfolio",
+  title: "Christopher Schmitt Photographs",
   description:
-    "Explore the artwork portfolio of CJS — a curated collection of photographs and visual art.",
-  icons: {
-    icon: "/favicon.svg",
-  },
+    "A curated collection of my photographic artwork.",
 };
 
 export default function RootLayout({
