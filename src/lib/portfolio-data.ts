@@ -45,13 +45,41 @@ export async function savePortfolioManifest(
   });
 }
 
+const MIME_MAP: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  bmp: "image/bmp",
+  svg: "image/svg+xml",
+  tiff: "image/tiff",
+  tif: "image/tiff",
+  heic: "image/heic",
+  heif: "image/heif",
+  avif: "image/avif",
+  cr2: "image/x-canon-cr2",
+  nef: "image/x-nikon-nef",
+  arw: "image/x-sony-arw",
+  dng: "image/x-adobe-dng",
+  orf: "image/x-olympus-orf",
+  rw2: "image/x-panasonic-rw2",
+};
+
+function resolveContentType(file: File): string {
+  if (file.type && file.type !== "application/octet-stream") return file.type;
+
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  return MIME_MAP[ext] || "application/octet-stream";
+}
+
 export async function uploadArtworkImage(file: File): Promise<string> {
-  const ext = file.name.split(".").pop() || "jpg";
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
   const key = `portfolio/images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   const blob = await put(key, file, {
     access: "public",
-    contentType: file.type,
+    contentType: resolveContentType(file),
   });
 
   return blob.url;
