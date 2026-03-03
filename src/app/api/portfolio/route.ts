@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   getPortfolioManifest,
   savePortfolioManifest,
@@ -7,14 +8,21 @@ import {
 import type { StoredArtwork } from "@/lib/portfolio-data";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+
+function jsonResponse(data: unknown) {
+  return NextResponse.json(data, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "CDN-Cache-Control": "no-store",
+      "Vercel-CDN-Cache-Control": "no-store",
+    },
+  });
+}
 
 export async function GET() {
   const artworks = await getPortfolioManifest();
-  return NextResponse.json(artworks, {
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-    },
-  });
+  return jsonResponse(artworks);
 }
 
 export async function DELETE(request: Request) {
@@ -28,7 +36,8 @@ export async function DELETE(request: Request) {
       artwork.images = artwork.images.filter((img) => img !== imageUrl);
     }
     await savePortfolioManifest(artworks);
-    return NextResponse.json(artworks);
+    revalidatePath("/");
+    return jsonResponse(artworks);
   }
 
   const artwork = artworks.find((a) => a.id === id);
@@ -38,7 +47,8 @@ export async function DELETE(request: Request) {
 
   const updated = artworks.filter((a) => a.id !== id);
   await savePortfolioManifest(updated);
-  return NextResponse.json(updated);
+  revalidatePath("/");
+  return jsonResponse(updated);
 }
 
 export async function PUT(request: Request) {
@@ -58,5 +68,6 @@ export async function PUT(request: Request) {
   });
 
   await savePortfolioManifest(updated);
-  return NextResponse.json(updated);
+  revalidatePath("/");
+  return jsonResponse(updated);
 }

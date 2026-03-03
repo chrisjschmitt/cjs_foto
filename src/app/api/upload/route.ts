@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import {
   getPortfolioManifest,
   savePortfolioManifest,
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
       }
       artworks[idx].images.push(...imageUrls);
       await savePortfolioManifest(artworks);
+      revalidatePath("/");
       return NextResponse.json(artworks[idx]);
     }
 
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
 
     artworks.unshift(newArtwork);
     await savePortfolioManifest(artworks);
+    revalidatePath("/");
     return NextResponse.json(newArtwork);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";

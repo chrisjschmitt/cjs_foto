@@ -22,7 +22,8 @@ export async function getPortfolioManifest(): Promise<StoredArtwork[]> {
     const { blobs } = await list({ prefix: MANIFEST_KEY });
     if (blobs.length === 0) return [];
 
-    const res = await fetch(blobs[0].url, { cache: "no-store" });
+    const url = `${blobs[0].url}?t=${Date.now()}`;
+    const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
 
