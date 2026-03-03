@@ -17,21 +17,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No file provided" }, { status: 400 });
   }
 
-  const imageUrl = await uploadArtworkImage(file);
-  const artworks = await getPortfolioManifest();
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return NextResponse.json(
+      { error: "BLOB_READ_WRITE_TOKEN is not set. Add it in Vercel project settings or .env.local." },
+      { status: 500 }
+    );
+  }
 
-  const newArtwork = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    title,
-    category,
-    year,
-    description,
-    imageUrl,
-    createdAt: new Date().toISOString(),
-  };
+  try {
+    const imageUrl = await uploadArtworkImage(file);
+    const artworks = await getPortfolioManifest();
 
-  artworks.unshift(newArtwork);
-  await savePortfolioManifest(artworks);
+    const newArtwork = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      title,
+      category,
+      year,
+      description,
+      imageUrl,
+      createdAt: new Date().toISOString(),
+    };
 
-  return NextResponse.json(newArtwork);
+    artworks.unshift(newArtwork);
+    await savePortfolioManifest(artworks);
+
+    return NextResponse.json(newArtwork);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }

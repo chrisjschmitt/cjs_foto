@@ -54,14 +54,16 @@ export default function AdminPage() {
 
     try {
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
 
       setMessage({ type: "success", text: `"${form.title}" uploaded successfully!` });
       setForm({ title: "", category: "", year: new Date().getFullYear().toString(), description: "" });
       if (fileRef.current) fileRef.current.value = "";
       await fetchArtworks();
-    } catch {
-      setMessage({ type: "error", text: "Upload failed. Make sure BLOB_READ_WRITE_TOKEN is configured." });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      setMessage({ type: "error", text: msg });
     } finally {
       setUploading(false);
     }
