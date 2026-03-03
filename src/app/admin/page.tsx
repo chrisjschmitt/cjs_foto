@@ -222,12 +222,12 @@ export default function AdminPage() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff,.tif,.heic,.heif,.avif,.svg,.cr2,.nef,.arw,.dng,.orf,.rw2"
               multiple
               required
               className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-100 file:px-4 file:py-1 file:text-xs file:text-warm-700"
             />
-            <p className="mt-1 text-xs text-warm-400">Select one or more images. The first image will be the cover.</p>
+            <p className="mt-1 text-xs text-warm-400">Select one or more images. Supports JPG, PNG, WebP, TIFF, HEIC, RAW, and more. The first image will be the cover.</p>
           </div>
 
           <div>
@@ -363,7 +363,7 @@ export default function AdminPage() {
                   <input
                     ref={(el) => { addFileRefs.current[artwork.id] = el; }}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.bmp,.tiff,.tif,.heic,.heif,.avif,.svg,.cr2,.nef,.arw,.dng,.orf,.rw2"
                     multiple
                     className="flex-grow text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-100 file:px-4 file:py-1 file:text-xs file:text-warm-700"
                   />
