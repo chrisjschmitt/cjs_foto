@@ -9,6 +9,9 @@ export default function AdminPage() {
   const [artworks, setArtworks] = useState<StoredArtwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", category: "", year: "", description: "" });
+  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -69,6 +72,41 @@ export default function AdminPage() {
     }
   }
 
+  function startEditing(artwork: StoredArtwork) {
+    setEditingId(artwork.id);
+    setEditForm({
+      title: artwork.title,
+      category: artwork.category,
+      year: artwork.year,
+      description: artwork.description,
+    });
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditForm({ title: "", category: "", year: "", description: "" });
+  }
+
+  async function handleSaveEdit(id: string) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/portfolio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, ...editForm }),
+      });
+      if (res.ok) {
+        setArtworks(await res.json());
+        setEditingId(null);
+        setMessage({ type: "success", text: `"${editForm.title}" updated.` });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Failed to save changes." });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete(id: string, title: string) {
     if (!confirm(`Delete "${title}"? This cannot be undone.`)) return;
 
@@ -86,6 +124,9 @@ export default function AdminPage() {
       setMessage({ type: "error", text: "Delete failed." });
     }
   }
+
+  const inputClass =
+    "w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none";
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-16">
@@ -142,7 +183,7 @@ export default function AdminPage() {
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
               placeholder="e.g. Morning Stillness"
-              className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none"
+              className={inputClass}
             />
           </div>
 
@@ -156,7 +197,7 @@ export default function AdminPage() {
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
               placeholder="e.g. Landscape, Macro, Portrait"
-              className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none"
+              className={inputClass}
             />
           </div>
 
@@ -169,7 +210,7 @@ export default function AdminPage() {
               required
               value={form.year}
               onChange={(e) => setForm({ ...form, year: e.target.value })}
-              className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 focus:border-warm-400 focus:outline-none"
+              className={inputClass}
             />
           </div>
 
@@ -183,7 +224,7 @@ export default function AdminPage() {
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder="Brief description of the piece"
-              className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none"
+              className={inputClass}
             />
           </div>
         </div>
@@ -211,30 +252,111 @@ export default function AdminPage() {
           {artworks.map((artwork) => (
             <div
               key={artwork.id}
-              className="flex items-center gap-5 rounded-sm border border-warm-200 bg-white p-4"
+              className="rounded-sm border border-warm-200 bg-white p-5"
             >
-              <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-sm bg-warm-100">
-                <Image
-                  src={artwork.imageUrl}
-                  alt={artwork.title}
-                  fill
-                  sizes="112px"
-                  className="object-cover"
-                />
-              </div>
-              <div className="flex-grow">
-                <h3 className="font-serif text-base text-warm-900">{artwork.title}</h3>
-                <p className="text-xs text-warm-500">
-                  {artwork.category} &middot; {artwork.year}
-                </p>
-                <p className="mt-1 text-xs text-warm-400">{artwork.description}</p>
-              </div>
-              <button
-                onClick={() => handleDelete(artwork.id, artwork.title)}
-                className="flex-shrink-0 text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-red-600"
-              >
-                Delete
-              </button>
+              {editingId === artwork.id ? (
+                /* ---- Editing mode ---- */
+                <div className="flex gap-5">
+                  <div className="relative h-28 w-36 flex-shrink-0 overflow-hidden rounded-sm bg-warm-100">
+                    <Image
+                      src={artwork.imageUrl}
+                      alt={artwork.title}
+                      fill
+                      sizes="144px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex-grow space-y-3">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <div>
+                        <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Title</label>
+                        <input
+                          type="text"
+                          value={editForm.title}
+                          onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Category</label>
+                        <input
+                          type="text"
+                          value={editForm.category}
+                          onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Year</label>
+                        <input
+                          type="text"
+                          value={editForm.year}
+                          onChange={(e) => setEditForm({ ...editForm, year: e.target.value })}
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Description</label>
+                      <input
+                        type="text"
+                        value={editForm.description}
+                        onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                        className={inputClass}
+                      />
+                    </div>
+                    <div className="flex gap-3 pt-1">
+                      <button
+                        onClick={() => handleSaveEdit(artwork.id)}
+                        disabled={saving}
+                        className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 transition-colors hover:bg-warm-800 disabled:opacity-50"
+                      >
+                        {saving ? "Saving..." : "Save"}
+                      </button>
+                      <button
+                        onClick={cancelEditing}
+                        className="rounded-sm border border-warm-200 px-5 py-2 text-xs tracking-widest uppercase text-warm-500 transition-colors hover:border-warm-400 hover:text-warm-900"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ---- Display mode ---- */
+                <div className="flex items-center gap-5">
+                  <div className="relative h-20 w-28 flex-shrink-0 overflow-hidden rounded-sm bg-warm-100">
+                    <Image
+                      src={artwork.imageUrl}
+                      alt={artwork.title}
+                      fill
+                      sizes="112px"
+                      className="object-cover"
+                    />
+                  </div>
+                  <div className="flex-grow">
+                    <h3 className="font-serif text-base text-warm-900">{artwork.title}</h3>
+                    <p className="text-xs text-warm-500">
+                      {artwork.category} &middot; {artwork.year}
+                    </p>
+                    <p className="mt-1 text-xs text-warm-400">{artwork.description}</p>
+                  </div>
+                  <div className="flex flex-shrink-0 gap-4">
+                    <button
+                      onClick={() => startEditing(artwork)}
+                      className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-900"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(artwork.id, artwork.title)}
+                      className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-red-600"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
