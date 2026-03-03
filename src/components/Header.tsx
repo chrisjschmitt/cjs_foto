@@ -24,7 +24,7 @@ export default function Header() {
           href="#"
           className="font-serif text-xl tracking-wide text-warm-900 hover:text-warm-600 transition-colors"
         >
-          CJS Foto
+          Christopher Schmitt Photos
         </a>
         <div className="flex items-center gap-8">
           <a
