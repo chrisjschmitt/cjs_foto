@@ -6,7 +6,7 @@ export interface StoredArtwork {
   category: string;
   year: string;
   description: string;
-  imageUrl: string;
+  images: string[];
   createdAt: string;
 }
 
@@ -19,7 +19,12 @@ export async function getPortfolioManifest(): Promise<StoredArtwork[]> {
 
     const res = await fetch(blobs[0].url, { cache: "no-store" });
     if (!res.ok) return [];
-    return await res.json();
+    const data = await res.json();
+
+    return data.map((item: StoredArtwork & { imageUrl?: string }) => {
+      if (item.images) return item;
+      return { ...item, images: item.imageUrl ? [item.imageUrl] : [] };
+    });
   } catch {
     return [];
   }
@@ -40,9 +45,7 @@ export async function savePortfolioManifest(
   });
 }
 
-export async function uploadArtworkImage(
-  file: File
-): Promise<string> {
+export async function uploadArtworkImage(file: File): Promise<string> {
   const ext = file.name.split(".").pop() || "jpg";
   const key = `portfolio/images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 

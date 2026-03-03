@@ -12,17 +12,26 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
-  const { id } = await request.json();
+  const { id, imageUrl } = await request.json();
   const artworks = await getPortfolioManifest();
-  const artwork = artworks.find((a) => a.id === id);
 
+  if (imageUrl) {
+    const artwork = artworks.find((a) => a.id === id);
+    if (artwork) {
+      await deleteArtworkImage(imageUrl);
+      artwork.images = artwork.images.filter((img) => img !== imageUrl);
+    }
+    await savePortfolioManifest(artworks);
+    return NextResponse.json(artworks);
+  }
+
+  const artwork = artworks.find((a) => a.id === id);
   if (artwork) {
-    await deleteArtworkImage(artwork.imageUrl);
+    await Promise.all(artwork.images.map((img) => deleteArtworkImage(img)));
   }
 
   const updated = artworks.filter((a) => a.id !== id);
   await savePortfolioManifest(updated);
-
   return NextResponse.json(updated);
 }
 
