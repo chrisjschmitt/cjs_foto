@@ -48,8 +48,14 @@ export default function AdminPage() {
 
   async function handleCreateSeries(e: React.FormEvent) {
     e.preventDefault();
-    const files = fileRef.current?.files;
-    if (!files || files.length === 0) {
+
+    if (!form.title || !form.category || !form.year || !form.description) {
+      setMessage({ type: "error", text: "Please fill in all fields." });
+      return;
+    }
+
+    const fileList = fileRef.current?.files;
+    if (!fileList || fileList.length === 0) {
       setMessage({ type: "error", text: "Please select at least one image." });
       return;
     }
@@ -57,19 +63,21 @@ export default function AdminPage() {
     setUploading(true);
     setMessage(null);
 
-    const formData = new FormData();
-    Array.from(files).forEach((f) => formData.append("files", f));
-    formData.append("title", form.title);
-    formData.append("category", form.category);
-    formData.append("year", form.year);
-    formData.append("description", form.description);
-
     try {
+      const formData = new FormData();
+      for (let i = 0; i < fileList.length; i++) {
+        formData.append("files", fileList[i]);
+      }
+      formData.append("title", form.title);
+      formData.append("category", form.category);
+      formData.append("year", form.year);
+      formData.append("description", form.description);
+
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
-      setMessage({ type: "success", text: `"${form.title}" created with ${files.length} image${files.length > 1 ? "s" : ""}.` });
+      setMessage({ type: "success", text: `"${form.title}" created with ${fileList.length} image${fileList.length > 1 ? "s" : ""}.` });
       setForm({ title: "", category: "", year: new Date().getFullYear().toString(), description: "" });
       if (fileRef.current) fileRef.current.value = "";
       await fetchArtworks();
@@ -83,24 +91,27 @@ export default function AdminPage() {
 
   async function handleAddImages(seriesId: string) {
     const input = addFileRefs.current[seriesId];
-    const files = input?.files;
-    if (!files || files.length === 0) {
+    const fileList = input?.files;
+    if (!fileList || fileList.length === 0) {
       setMessage({ type: "error", text: "Please select at least one image to add." });
       return;
     }
 
     setAddingImages(true);
     setMessage(null);
-    const formData = new FormData();
-    Array.from(files).forEach((f) => formData.append("files", f));
-    formData.append("seriesId", seriesId);
 
     try {
+      const formData = new FormData();
+      for (let i = 0; i < fileList.length; i++) {
+        formData.append("files", fileList[i]);
+      }
+      formData.append("seriesId", seriesId);
+
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
-      setMessage({ type: "success", text: `Added ${files.length} image${files.length > 1 ? "s" : ""}.` });
+      setMessage({ type: "success", text: `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.` });
       setAddingTo(null);
       if (input) input.value = "";
       await fetchArtworks();
@@ -247,7 +258,7 @@ export default function AdminPage() {
       )}
 
       {/* Create new series */}
-      <form onSubmit={handleCreateSeries} className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
+      <form onSubmit={handleCreateSeries} noValidate className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
         <h2 className="mb-6 font-serif text-xl text-warm-900">Create New Series</h2>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -258,9 +269,7 @@ export default function AdminPage() {
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
               multiple
-              required
               className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-100 file:px-4 file:py-1 file:text-xs file:text-warm-700"
             />
             <p className="mt-1 text-xs text-warm-400">Select one or more images. The first image will be the cover.</p>
@@ -268,22 +277,22 @@ export default function AdminPage() {
 
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Title</label>
-            <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Copper Veins" className={inputClass} />
+            <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Copper Veins" className={inputClass} />
           </div>
 
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Category</label>
-            <input type="text" required value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Macro, Landscape, Portrait" className={inputClass} />
+            <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Macro, Landscape, Portrait" className={inputClass} />
           </div>
 
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Year</label>
-            <input type="text" required value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className={inputClass} />
+            <input type="text" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className={inputClass} />
           </div>
 
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Description</label>
-            <input type="text" required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of the series" className={inputClass} />
+            <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of the series" className={inputClass} />
           </div>
         </div>
 
@@ -365,7 +374,6 @@ export default function AdminPage() {
                   <input
                     ref={(el) => { addFileRefs.current[artwork.id] = el; }}
                     type="file"
-                    accept="image/*"
                     multiple
                     className="mb-3 w-full text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-200 file:px-4 file:py-2 file:text-xs file:text-warm-700"
                   />
