@@ -6,8 +6,19 @@ import {
 } from "@/lib/portfolio-data";
 
 export async function POST(request: Request) {
-  const formData = await request.formData();
-  const files = formData.getAll("files") as File[];
+  let formData: FormData;
+  try {
+    formData = await request.formData();
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to parse upload. Files may be too large." },
+      { status: 413 }
+    );
+  }
+
+  const files = (formData.getAll("files") as File[]).filter(
+    (f) => f instanceof File && f.size > 0
+  );
   const seriesId = formData.get("seriesId") as string | null;
   const title = formData.get("title") as string;
   const category = formData.get("category") as string;
@@ -26,7 +37,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const imageUrls = await Promise.all(files.map((f) => uploadArtworkImage(f)));
+    const imageUrls: string[] = [];
+    for (const file of files) {
+      const url = await uploadArtworkImage(file);
+      imageUrls.push(url);
+    }
+
     const artworks = await getPortfolioManifest();
 
     if (seriesId) {

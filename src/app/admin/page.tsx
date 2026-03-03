@@ -16,7 +16,7 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const addFileRef = useRef<HTMLInputElement>(null);
+  const addFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const [form, setForm] = useState({
     title: "",
@@ -76,10 +76,15 @@ export default function AdminPage() {
   }
 
   async function handleAddImages(seriesId: string) {
-    const files = addFileRef.current?.files;
-    if (!files || files.length === 0) return;
+    const input = addFileRefs.current[seriesId];
+    const files = input?.files;
+    if (!files || files.length === 0) {
+      setMessage({ type: "error", text: "Please select at least one image to add." });
+      return;
+    }
 
     setAddingImages(true);
+    setMessage(null);
     const formData = new FormData();
     Array.from(files).forEach((f) => formData.append("files", f));
     formData.append("seriesId", seriesId);
@@ -91,7 +96,7 @@ export default function AdminPage() {
 
       setMessage({ type: "success", text: `Added ${files.length} image${files.length > 1 ? "s" : ""}.` });
       setAddingTo(null);
-      if (addFileRef.current) addFileRef.current.value = "";
+      if (input) input.value = "";
       await fetchArtworks();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to add images";
@@ -356,7 +361,7 @@ export default function AdminPage() {
               {addingTo === artwork.id && (
                 <div className="mb-4 flex items-center gap-3 rounded-sm border border-warm-100 bg-warm-50 p-3">
                   <input
-                    ref={addFileRef}
+                    ref={(el) => { addFileRefs.current[artwork.id] = el; }}
                     type="file"
                     accept="image/*"
                     multiple
