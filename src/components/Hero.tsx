@@ -10,12 +10,12 @@ export default function Hero() {
         <p className="mb-4 text-sm tracking-[0.3em] uppercase text-warm-500">
           Visual Art &amp; Photography
         </p>
-        <h1 className="font-serif text-6xl font-light leading-tight tracking-tight text-warm-900 sm:text-7xl lg:text-8xl">
+        <h2 className="font-serif text-6xl font-light leading-tight tracking-tight text-warm-900 sm:text-7xl lg:text-8xl">
           Christopher Schmitt Photographs
-        </h1>
+        </h2>
         <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-warm-600">
-          A curated collection of moments, textures, and light — captured
-          through the lens and shaped by vision.
+          A curated collection of my work — captured
+          through the lens and shaped by my imagination.
         </p>
         <a
           href="#portfolio"
