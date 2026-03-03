@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 
 interface LightboxProps {
@@ -13,6 +13,7 @@ interface LightboxProps {
 
 export default function Lightbox({ images, title, description, initialIndex = 0, onClose }: LightboxProps) {
   const [current, setCurrent] = useState(initialIndex);
+  const touchStart = useRef<number | null>(null);
 
   const prev = useCallback(() => {
     setCurrent((c) => (c === 0 ? images.length - 1 : c - 1));
@@ -36,20 +37,43 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
     };
   }, [onClose, prev, next]);
 
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStart.current = e.touches[0].clientX;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStart.current === null) return;
+    const diff = e.changedTouches[0].clientX - touchStart.current;
+    if (Math.abs(diff) > 50) {
+      if (diff > 0) prev();
+      else next();
+    }
+    touchStart.current = null;
+  }
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90" onClick={onClose}>
-      <div className="relative flex h-full w-full max-w-7xl flex-col items-center justify-center px-4 py-16" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90"
+      onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="relative flex h-full w-full max-w-7xl flex-col items-center justify-center px-4 py-20 sm:py-16" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div className="absolute top-6 left-0 right-0 flex items-center justify-between px-6">
-          <div>
-            <h2 className="font-serif text-lg text-white">{title}</h2>
-            <p className="text-xs text-white/50">{description}</p>
+        <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-4 sm:px-6">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-serif text-base text-white sm:text-lg">{title}</h2>
+            <p className="truncate text-xs text-white/50">{description}</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-shrink-0 items-center gap-3 pl-3">
             <span className="text-sm tabular-nums text-white/60">
-              {current + 1} / {images.length}
+              {current + 1}/{images.length}
             </span>
-            <button onClick={onClose} className="flex h-10 w-10 items-center justify-center rounded-full text-white/60 transition-colors hover:bg-white/10 hover:text-white">
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-white/70 active:bg-white/20"
+              aria-label="Close"
+            >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -58,7 +82,7 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
         </div>
 
         {/* Image */}
-        <div className="relative h-[calc(100%-8rem)] w-full">
+        <div className="relative h-[calc(100%-6rem)] w-full sm:h-[calc(100%-8rem)]">
           <Image
             src={images[current]}
             alt={`${title} — ${current + 1} of ${images.length}`}
@@ -73,16 +97,18 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
         {images.length > 1 && (
           <>
             <button
-              onClick={prev}
-              className="absolute left-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              onClick={(e) => { e.stopPropagation(); prev(); }}
+              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/40 text-white/80 active:bg-white/20 sm:left-4"
+              aria-label="Previous"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
             </button>
             <button
-              onClick={next}
-              className="absolute right-4 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white"
+              onClick={(e) => { e.stopPropagation(); next(); }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-12 w-12 items-center justify-center rounded-full bg-black/40 text-white/80 active:bg-white/20 sm:right-4"
+              aria-label="Next"
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -93,13 +119,13 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
 
         {/* Thumbnail strip */}
         {images.length > 1 && (
-          <div className="absolute bottom-4 flex gap-2 overflow-x-auto px-6">
+          <div className="absolute bottom-2 flex gap-2 overflow-x-auto px-4 sm:bottom-4 sm:px-6">
             {images.map((img, idx) => (
               <button
                 key={img}
-                onClick={() => setCurrent(idx)}
-                className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-sm transition-all ${
-                  idx === current ? "ring-2 ring-white ring-offset-2 ring-offset-black" : "opacity-50 hover:opacity-80"
+                onClick={(e) => { e.stopPropagation(); setCurrent(idx); }}
+                className={`relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-sm transition-all sm:h-12 sm:w-12 ${
+                  idx === current ? "ring-2 ring-white ring-offset-1 ring-offset-black" : "opacity-50 active:opacity-80"
                 }`}
               >
                 <Image src={img} alt="" fill sizes="48px" className="object-cover" />
