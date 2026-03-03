@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import PortfolioCard from "./PortfolioCard";
 
 export interface ArtworkItem {
-  id: number;
+  id: string | number;
   title: string;
   category: string;
   year: string;
@@ -14,9 +14,9 @@ export interface ArtworkItem {
   href: string;
 }
 
-const artworks: ArtworkItem[] = [
+const placeholderArtworks: ArtworkItem[] = [
   {
-    id: 1,
+    id: "p1",
     title: "Copper Veins",
     category: "Macro",
     year: "2025",
@@ -25,7 +25,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 2,
+    id: "p2",
     title: "Morning Stillness",
     category: "Landscape",
     year: "2025",
@@ -34,7 +34,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 3,
+    id: "p3",
     title: "Urban Geometry",
     category: "Architecture",
     year: "2025",
@@ -43,7 +43,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 4,
+    id: "p4",
     title: "Verdant Whisper",
     category: "Nature",
     year: "2024",
@@ -52,7 +52,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 5,
+    id: "p5",
     title: "Solitude in Blue",
     category: "Abstract",
     year: "2024",
@@ -61,7 +61,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 6,
+    id: "p6",
     title: "Golden Hour",
     category: "Portrait",
     year: "2024",
@@ -70,7 +70,7 @@ const artworks: ArtworkItem[] = [
     href: "#",
   },
   {
-    id: 7,
+    id: "p7",
     title: "Nocturne",
     category: "Landscape",
     year: "2023",
@@ -80,13 +80,40 @@ const artworks: ArtworkItem[] = [
   },
 ];
 
-const categories = ["All", ...Array.from(new Set(artworks.map((a) => a.category)))];
-
 export default function Portfolio() {
   const [active, setActive] = useState("All");
+  const [uploadedArtworks, setUploadedArtworks] = useState<ArtworkItem[]>([]);
+
+  useEffect(() => {
+    fetch("/api/portfolio")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => {
+        const mapped: ArtworkItem[] = data.map(
+          (a: { id: string; title: string; category: string; year: string; description: string; imageUrl: string }) => ({
+            id: a.id,
+            title: a.title,
+            category: a.category,
+            year: a.year,
+            description: a.description,
+            image: a.imageUrl,
+            href: "#",
+          })
+        );
+        setUploadedArtworks(mapped);
+      })
+      .catch(() => {});
+  }, []);
+
+  const allArtworks = [...uploadedArtworks, ...placeholderArtworks];
+  const categories = [
+    "All",
+    ...Array.from(new Set(allArtworks.map((a) => a.category))),
+  ];
 
   const filtered =
-    active === "All" ? artworks : artworks.filter((a) => a.category === active);
+    active === "All"
+      ? allArtworks
+      : allArtworks.filter((a) => a.category === active);
 
   return (
     <section id="portfolio" className="py-28 lg:py-36">
