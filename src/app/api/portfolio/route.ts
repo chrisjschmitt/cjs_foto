@@ -6,9 +6,15 @@ import {
 } from "@/lib/portfolio-data";
 import type { StoredArtwork } from "@/lib/portfolio-data";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const artworks = await getPortfolioManifest();
-  return NextResponse.json(artworks);
+  return NextResponse.json(artworks, {
+    headers: {
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+    },
+  });
 }
 
 export async function DELETE(request: Request) {

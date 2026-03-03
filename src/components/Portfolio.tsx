@@ -19,7 +19,7 @@ export default function Portfolio() {
   const [lightbox, setLightbox] = useState<ArtworkItem | null>(null);
 
   useEffect(() => {
-    fetch("/api/portfolio")
+    fetch("/api/portfolio", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         const mapped: ArtworkItem[] = data.map(
