@@ -186,6 +186,51 @@ export default function AdminPage() {
     }
   }
 
+  const dragItem = useRef<{ seriesId: string; index: number } | null>(null);
+
+  function handleDragStart(seriesId: string, index: number) {
+    dragItem.current = { seriesId, index };
+  }
+
+  function handleDrop(seriesId: string, dropIndex: number) {
+    if (!dragItem.current || dragItem.current.seriesId !== seriesId) return;
+    const fromIndex = dragItem.current.index;
+    if (fromIndex === dropIndex) return;
+    reorderImage(seriesId, fromIndex, dropIndex);
+    dragItem.current = null;
+  }
+
+  function moveImage(seriesId: string, index: number, direction: -1 | 1) {
+    const target = index + direction;
+    const series = artworks.find((a) => a.id === seriesId);
+    if (!series || target < 0 || target >= series.images.length) return;
+    reorderImage(seriesId, index, target);
+  }
+
+  async function reorderImage(seriesId: string, from: number, to: number) {
+    const series = artworks.find((a) => a.id === seriesId);
+    if (!series) return;
+    const imgs = [...series.images];
+    const [moved] = imgs.splice(from, 1);
+    imgs.splice(to, 0, moved);
+
+    setArtworks((prev) =>
+      prev.map((a) => (a.id === seriesId ? { ...a, images: imgs } : a))
+    );
+
+    try {
+      const res = await fetch("/api/portfolio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: seriesId, images: imgs }),
+      });
+      if (res.ok) setArtworks(await res.json());
+    } catch {
+      setMessage({ type: "error", text: "Failed to save new order." });
+      await fetchArtworks();
+    }
+  }
+
   const inputClass =
     "w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none";
 
@@ -381,22 +426,44 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Image grid */}
+              {/* Image grid — drag to reorder */}
+              <p className="mb-2 text-[10px] tracking-widest uppercase text-warm-400">
+                Drag to reorder &middot; first image is the cover
+              </p>
               <div className="grid grid-cols-4 gap-3 sm:grid-cols-6 lg:grid-cols-8">
                 {artwork.images.map((img, idx) => (
-                  <div key={img} className="group relative aspect-square overflow-hidden rounded-sm bg-warm-100">
-                    <Image src={img} alt={`${artwork.title} ${idx + 1}`} fill sizes="100px" className="object-cover" />
+                  <div
+                    key={img}
+                    draggable
+                    onDragStart={() => handleDragStart(artwork.id, idx)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleDrop(artwork.id, idx)}
+                    className="group relative aspect-square cursor-grab overflow-hidden rounded-sm bg-warm-100 active:cursor-grabbing"
+                  >
+                    <Image src={img} alt={`${artwork.title} ${idx + 1}`} fill sizes="100px" className="object-cover pointer-events-none" />
                     {idx === 0 && (
                       <span className="absolute top-1 left-1 rounded-sm bg-warm-900/70 px-1.5 py-0.5 text-[9px] tracking-wider uppercase text-warm-50">
                         Cover
                       </span>
                     )}
-                    <button
-                      onClick={() => handleDeleteImage(artwork.id, img)}
-                      className="absolute top-1 right-1 hidden rounded-sm bg-red-600/80 px-1.5 py-0.5 text-[9px] text-white group-hover:block"
-                    >
-                      &times;
-                    </button>
+                    {/* Controls overlay */}
+                    <div className="absolute inset-x-0 bottom-0 hidden items-center justify-between bg-black/60 px-1 py-0.5 group-hover:flex">
+                      <div className="flex gap-0.5">
+                        {idx > 0 && (
+                          <button onClick={() => moveImage(artwork.id, idx, -1)} className="text-[10px] text-white/80 hover:text-white" title="Move left">&larr;</button>
+                        )}
+                        {idx < artwork.images.length - 1 && (
+                          <button onClick={() => moveImage(artwork.id, idx, 1)} className="text-[10px] text-white/80 hover:text-white" title="Move right">&rarr;</button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleDeleteImage(artwork.id, img)}
+                        className="text-[10px] text-red-400 hover:text-red-300"
+                        title="Delete image"
+                      >
+                        &times;
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

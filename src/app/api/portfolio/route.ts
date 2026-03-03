@@ -36,12 +36,20 @@ export async function DELETE(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  const { id, title, category, year, description } = await request.json();
+  const body = await request.json();
+  const { id, title, category, year, description, images } = body;
   const artworks = await getPortfolioManifest();
 
-  const updated: StoredArtwork[] = artworks.map((a) =>
-    a.id === id ? { ...a, title, category, year, description } : a
-  );
+  const updated: StoredArtwork[] = artworks.map((a) => {
+    if (a.id !== id) return a;
+    const patch: Partial<StoredArtwork> = {};
+    if (title !== undefined) patch.title = title;
+    if (category !== undefined) patch.category = category;
+    if (year !== undefined) patch.year = year;
+    if (description !== undefined) patch.description = description;
+    if (Array.isArray(images)) patch.images = images;
+    return { ...a, ...patch };
+  });
 
   await savePortfolioManifest(updated);
   return NextResponse.json(updated);
