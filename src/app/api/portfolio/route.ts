@@ -8,7 +8,10 @@ import {
 import type { StoredArtwork } from "@/lib/portfolio-data";
 
 export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
+
+function tryRevalidate() {
+  try { revalidatePath("/"); } catch { /* non-critical */ }
+}
 
 function jsonResponse(data: unknown) {
   return NextResponse.json(data, {
@@ -36,7 +39,7 @@ export async function DELETE(request: Request) {
       artwork.images = artwork.images.filter((img) => img !== imageUrl);
     }
     await savePortfolioManifest(artworks);
-    revalidatePath("/");
+    tryRevalidate();
     return jsonResponse(artworks);
   }
 
@@ -47,7 +50,7 @@ export async function DELETE(request: Request) {
 
   const updated = artworks.filter((a) => a.id !== id);
   await savePortfolioManifest(updated);
-  revalidatePath("/");
+  tryRevalidate();
   return jsonResponse(updated);
 }
 
@@ -68,6 +71,6 @@ export async function PUT(request: Request) {
   });
 
   await savePortfolioManifest(updated);
-  revalidatePath("/");
+  tryRevalidate();
   return jsonResponse(updated);
 }

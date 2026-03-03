@@ -6,6 +6,10 @@ import {
   uploadArtworkImage,
 } from "@/lib/portfolio-data";
 
+function tryRevalidate() {
+  try { revalidatePath("/"); } catch { /* non-critical */ }
+}
+
 export async function POST(request: Request) {
   let formData: FormData;
   try {
@@ -53,7 +57,7 @@ export async function POST(request: Request) {
       }
       artworks[idx].images.push(...imageUrls);
       await savePortfolioManifest(artworks);
-      revalidatePath("/");
+      tryRevalidate();
       return NextResponse.json(artworks[idx]);
     }
 
@@ -69,7 +73,7 @@ export async function POST(request: Request) {
 
     artworks.unshift(newArtwork);
     await savePortfolioManifest(artworks);
-    revalidatePath("/");
+    tryRevalidate();
     return NextResponse.json(newArtwork);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
