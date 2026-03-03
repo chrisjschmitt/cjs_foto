@@ -12,6 +12,11 @@ export interface StoredArtwork {
 
 const MANIFEST_KEY = "portfolio/manifest.json";
 
+function wrapError(step: string, err: unknown): never {
+  const msg = err instanceof Error ? err.message : String(err);
+  throw new Error(`[${step}] ${msg}`);
+}
+
 export async function getPortfolioManifest(): Promise<StoredArtwork[]> {
   try {
     const { blobs } = await list({ prefix: MANIFEST_KEY });
@@ -33,16 +38,30 @@ export async function getPortfolioManifest(): Promise<StoredArtwork[]> {
 export async function savePortfolioManifest(
   artworks: StoredArtwork[]
 ): Promise<void> {
-  const { blobs } = await list({ prefix: MANIFEST_KEY });
-  for (const blob of blobs) {
-    await del(blob.url);
+  let blobs;
+  try {
+    ({ blobs } = await list({ prefix: MANIFEST_KEY }));
+  } catch (err) {
+    wrapError("manifest-list", err);
   }
 
-  await put(MANIFEST_KEY, JSON.stringify(artworks, null, 2), {
-    access: "public",
-    contentType: "application/json",
-    addRandomSuffix: false,
-  });
+  for (const blob of blobs) {
+    try {
+      await del(blob.url);
+    } catch (err) {
+      wrapError("manifest-delete", err);
+    }
+  }
+
+  try {
+    await put(MANIFEST_KEY, JSON.stringify(artworks, null, 2), {
+      access: "public",
+      contentType: "application/json",
+      addRandomSuffix: false,
+    });
+  } catch (err) {
+    wrapError("manifest-save", err);
+  }
 }
 
 const MIME_MAP: Record<string, string> = {
@@ -68,21 +87,29 @@ const MIME_MAP: Record<string, string> = {
 
 function resolveContentType(file: File): string {
   if (file.type && file.type !== "application/octet-stream") return file.type;
-
   const ext = file.name.split(".").pop()?.toLowerCase() || "";
   return MIME_MAP[ext] || "application/octet-stream";
 }
 
 export async function uploadArtworkImage(file: File): Promise<string> {
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const ext = (file.name.split(".").pop() || "jpg")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
   const key = `portfolio/images/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const contentType = resolveContentType(file);
 
-  const blob = await put(key, file, {
-    access: "public",
-    contentType: resolveContentType(file),
-  });
-
-  return blob.url;
+  try {
+    const blob = await put(key, file, {
+      access: "public",
+      contentType,
+    });
+    return blob.url;
+  } catch (err) {
+    wrapError(
+      `image-upload: name="${file.name}" type="${file.type}" resolved="${contentType}" size=${file.size}`,
+      err
+    );
+  }
 }
 
 export async function deleteArtworkImage(imageUrl: string): Promise<void> {

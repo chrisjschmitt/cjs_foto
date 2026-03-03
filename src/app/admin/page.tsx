@@ -32,9 +32,15 @@ export default function AdminPage() {
   async function fetchArtworks() {
     try {
       const res = await fetch("/api/portfolio");
-      if (res.ok) setArtworks(await res.json());
-    } catch {
-      setMessage({ type: "error", text: "Failed to load portfolio data." });
+      if (res.ok) {
+        setArtworks(await res.json());
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setMessage({ type: "error", text: data.error || `Failed to load portfolio (HTTP ${res.status}).` });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      setMessage({ type: "error", text: `Failed to load portfolio: ${msg}` });
     } finally {
       setLoading(false);
     }
