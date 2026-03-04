@@ -29,6 +29,14 @@ export default function Footer() {
               >
                 Behance
               </a>
+              <a
+                href="/cv.pdf"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
+              >
+                CV
+              </a>
             </div>
           </div>
         </div>
