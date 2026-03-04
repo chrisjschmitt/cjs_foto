@@ -6,14 +6,23 @@ import type { StoredArtwork } from "@/lib/portfolio-data";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const { blobs } = await list({ prefix: "portfolio/images/" });
-  const imageUrls = blobs
+  const { blobs: imageBlobs } = await list({ prefix: "portfolio/images/" });
+  const imageUrls = imageBlobs
     .filter((b) => !b.pathname.endsWith(".json"))
     .map((b) => b.url);
+
+  const { blobs: manifestBlobs } = await list({ prefix: "portfolio/manifest" });
+  const manifestInfo = manifestBlobs.map((b) => ({
+    pathname: b.pathname,
+    url: b.url,
+    size: b.size,
+    uploadedAt: b.uploadedAt,
+  }));
 
   return NextResponse.json({
     imageCount: imageUrls.length,
     images: imageUrls,
+    manifests: manifestInfo,
   });
 }
 
