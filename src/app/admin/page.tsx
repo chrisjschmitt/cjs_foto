@@ -85,10 +85,10 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
+      setArtworks((prev) => [data, ...prev]);
       toast("success", `"${form.title}" created with ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
       setForm({ title: "", category: "", year: new Date().getFullYear().toString(), description: "" });
       if (fileRef.current) fileRef.current.value = "";
-      await fetchArtworks();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Upload failed";
       toast("error", msg);
@@ -118,10 +118,14 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
+      setArtworks((prev) =>
+        prev.map((a) =>
+          a.id === seriesId ? { ...a, images: [...a.images, ...data.images.slice(-fileList.length)] } : a
+        )
+      );
       toast("success", `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
       setAddingTo(null);
       if (input) input.value = "";
-      await fetchArtworks();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to add images";
       toast("error", msg);
@@ -139,20 +143,26 @@ export default function AdminPage() {
     if (!confirm("Delete this image?")) return;
 
     setDeletingImage(imageUrl);
+    setArtworks((prev) =>
+      prev.map((a) =>
+        a.id === seriesId ? { ...a, images: a.images.filter((img) => img !== imageUrl) } : a
+      )
+    );
     try {
       const res = await fetch("/api/portfolio", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: seriesId, imageUrl }),
       });
-      if (res.ok) {
-        setArtworks(await res.json());
-        toast("success", "Image deleted.");
+      if (!res.ok) {
+        toast("error", "Failed to delete image. Refreshing...");
+        await fetchArtworks();
       } else {
-        toast("error", "Failed to delete image.");
+        toast("success", "Image deleted.");
       }
     } catch {
-      toast("error", "Failed to delete image.");
+      toast("error", "Failed to delete image. Refreshing...");
+      await fetchArtworks();
     } finally {
       setDeletingImage(null);
     }
@@ -162,20 +172,22 @@ export default function AdminPage() {
     if (!confirm(`Delete the entire "${title}" series and all its images? This cannot be undone.`)) return;
 
     setDeletingSeries(id);
+    setArtworks((prev) => prev.filter((a) => a.id !== id));
     try {
       const res = await fetch("/api/portfolio", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id }),
       });
-      if (res.ok) {
-        setArtworks(await res.json());
-        toast("success", `"${title}" deleted.`);
+      if (!res.ok) {
+        toast("error", "Delete failed. Refreshing...");
+        await fetchArtworks();
       } else {
-        toast("error", "Delete failed.");
+        toast("success", `"${title}" deleted.`);
       }
     } catch {
-      toast("error", "Delete failed.");
+      toast("error", "Delete failed. Refreshing...");
+      await fetchArtworks();
     } finally {
       setDeletingSeries(null);
     }
@@ -204,7 +216,9 @@ export default function AdminPage() {
         body: JSON.stringify({ id, ...editForm }),
       });
       if (res.ok) {
-        setArtworks(await res.json());
+        setArtworks((prev) =>
+          prev.map((a) => (a.id === id ? { ...a, ...editForm } : a))
+        );
         setEditingId(null);
         toast("success", `"${editForm.title}" saved.`);
       }
@@ -236,7 +250,6 @@ export default function AdminPage() {
         body: JSON.stringify({ id: seriesId, images: imgs }),
       });
       if (res.ok) {
-        setArtworks(await res.json());
         toast("success", "Order saved.");
       }
     } catch {
