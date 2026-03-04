@@ -107,20 +107,25 @@ export default function AdminPage() {
 
     setAddingImages(true);
 
+    const currentSeries = artworks.find((a) => a.id === seriesId);
     try {
       const formData = new FormData();
       for (let i = 0; i < fileList.length; i++) {
         formData.append("files", fileList[i]);
       }
       formData.append("seriesId", seriesId);
+      if (currentSeries) {
+        formData.append("currentImages", JSON.stringify(currentSeries.images));
+      }
 
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
+      const newUrls: string[] = data.newImages || [];
       setArtworks((prev) =>
         prev.map((a) =>
-          a.id === seriesId ? { ...a, images: [...a.images, ...data.images.slice(-fileList.length)] } : a
+          a.id === seriesId ? { ...a, images: [...a.images, ...newUrls] } : a
         )
       );
       toast("success", `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);

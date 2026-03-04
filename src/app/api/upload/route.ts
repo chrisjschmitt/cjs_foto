@@ -25,6 +25,8 @@ export async function POST(request: Request) {
     (f) => f instanceof File && f.size > 0
   );
   const seriesId = formData.get("seriesId") as string | null;
+  const currentImagesRaw = formData.get("currentImages") as string | null;
+  const currentImages: string[] = currentImagesRaw ? JSON.parse(currentImagesRaw) : [];
   const title = formData.get("title") as string;
   const category = formData.get("category") as string;
   const year = formData.get("year") as string;
@@ -55,10 +57,12 @@ export async function POST(request: Request) {
       if (idx === -1) {
         return NextResponse.json({ error: "Series not found" }, { status: 404 });
       }
-      artworks[idx].images.push(...imageUrls);
+      artworks[idx].images = currentImages.length > 0
+        ? [...currentImages, ...imageUrls]
+        : [...artworks[idx].images, ...imageUrls];
       await savePortfolioManifest(artworks);
       tryRevalidate();
-      return NextResponse.json(artworks[idx]);
+      return NextResponse.json({ newImages: imageUrls });
     }
 
     const newArtwork = {
