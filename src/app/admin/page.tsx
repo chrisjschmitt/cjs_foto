@@ -9,6 +9,7 @@ export default function AdminPage() {
   const [artworks, setArtworks] = useState<StoredArtwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [addingImages, setAddingImages] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -55,6 +56,21 @@ export default function AdminPage() {
     }
   }
 
+  async function uploadFilesOneByOne(fileList: FileList): Promise<string[]> {
+    const urls: string[] = [];
+    for (let i = 0; i < fileList.length; i++) {
+      setUploadProgress(`Uploading ${i + 1} of ${fileList.length}...`);
+      const fd = new FormData();
+      fd.append("file", fileList[i]);
+      const res = await fetch("/api/upload-image", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to upload file ${i + 1}`);
+      urls.push(data.url);
+    }
+    setUploadProgress("");
+    return urls;
+  }
+
   async function handleCreateSeries(e: React.FormEvent) {
     e.preventDefault();
 
@@ -72,18 +88,19 @@ export default function AdminPage() {
     setUploading(true);
 
     try {
+      const imageUrls = await uploadFilesOneByOne(fileList);
+      setUploadProgress("Saving series...");
+
       const formData = new FormData();
-      for (let i = 0; i < fileList.length; i++) {
-        formData.append("files", fileList[i]);
-      }
       formData.append("title", form.title);
       formData.append("category", form.category);
       formData.append("year", form.year);
       formData.append("description", form.description);
+      formData.append("imageUrls", JSON.stringify(imageUrls));
 
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (!res.ok) throw new Error(data.error || "Failed to save series");
 
       setArtworks((prev) => [data, ...prev]);
       toast("success", `"${form.title}" created with ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
@@ -94,6 +111,7 @@ export default function AdminPage() {
       toast("error", msg);
     } finally {
       setUploading(false);
+      setUploadProgress("");
     }
   }
 
@@ -109,23 +127,20 @@ export default function AdminPage() {
 
     const currentSeries = artworks.find((a) => a.id === seriesId);
     try {
-      const formData = new FormData();
-      for (let i = 0; i < fileList.length; i++) {
-        formData.append("files", fileList[i]);
-      }
-      formData.append("seriesId", seriesId);
-      if (currentSeries) {
-        formData.append("currentImages", JSON.stringify(currentSeries.images));
-      }
+      const newUrls = await uploadFilesOneByOne(fileList);
+      setUploadProgress("Saving...");
 
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Upload failed");
+      const allImages = currentSeries ? [...currentSeries.images, ...newUrls] : newUrls;
+      const res = await fetch("/api/portfolio", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: seriesId, images: allImages }),
+      });
+      if (!res.ok) throw new Error("Failed to save");
 
-      const newUrls: string[] = data.newImages || [];
       setArtworks((prev) =>
         prev.map((a) =>
-          a.id === seriesId ? { ...a, images: [...a.images, ...newUrls] } : a
+          a.id === seriesId ? { ...a, images: allImages } : a
         )
       );
       toast("success", `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
@@ -319,7 +334,7 @@ export default function AdminPage() {
         </div>
 
         <button type="submit" disabled={uploading} className="mt-6 rounded-sm bg-warm-900 px-8 py-3 text-sm tracking-widest uppercase text-warm-50 transition-colors hover:bg-warm-800 disabled:opacity-50">
-          {uploading ? "Creating..." : "Create Series"}
+          {uploading ? (uploadProgress || "Creating...") : "Create Series"}
         </button>
       </form>
 
@@ -408,7 +423,7 @@ export default function AdminPage() {
                     disabled={addingImages}
                     className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50"
                   >
-                    {addingImages ? "Uploading..." : "Upload"}
+                    {addingImages ? (uploadProgress || "Uploading...") : "Upload"}
                   </button>
                 </div>
               )}
