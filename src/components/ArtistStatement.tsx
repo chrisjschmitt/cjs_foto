@@ -10,23 +10,26 @@ export default function ArtistStatement() {
         </h2>
         <div className="space-y-6 text-base leading-relaxed text-warm-700 lg:text-lg lg:leading-relaxed">
           <p>
-            My work explores the quiet intersections of light, form, and
-            memory. Each image is an invitation to pause — to notice the
-            overlooked beauty in everyday spaces and fleeting moments that
-            shape our experience of the world.
+            My work explores the intersections of science, technology, 
+            and art. I'm particularly interested in the impact of disruptive
+            technologies on society, and broach on topics such as climate 
+            change, poverty, religion and artificial intelligence. Since I'm
+            too lazy to write, I use art as a way of expressing my thoughts.
           </p>
           <p>
-            I am drawn to natural textures, the interplay of shadow and
-            illumination, and the emotional resonance that emerges when a
-            familiar scene is seen from an unfamiliar angle. Photography,
-            for me, is less about documentation and more about
-            interpretation — finding the poetry hidden in the ordinary.
+            Each image is an invitation to reflect. For example, I may use 
+            obsolete technology to express the current state of the world, 
+            or perhaps to envision the future. It's my way of expressing the 
+            never-ending cycle of progress, and how we are so deeply affected 
+            by it.
           </p>
           <p>
-            Through this portfolio, I share a curated selection of work that
-            spans landscapes, abstractions, and intimate studies of light.
-            Each piece represents a moment of genuine connection between the
-            artist and the subject — a conversation made visible.
+            Each image is meticulously constructed from highly detailed 
+            photographs. I print my artwork on large format, archival paper. 
+            It has been exhibited publicly at the Ottawa Art Gallery, 
+            Corridor 45|75, the Ottawa City Hall gallery, at the Summerville 
+            Art Festival in New Brunswick, and is held in private collections
+            across Canada. Contact info and CV below.
           </p>
         </div>
       </div>
