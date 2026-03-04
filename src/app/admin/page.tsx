@@ -15,6 +15,11 @@ interface PendingImage {
 }
 
 export default function AdminPage() {
+  const [token, setToken] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(true);
+
   const [artworks, setArtworks] = useState<StoredArtwork[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -48,11 +53,47 @@ export default function AdminPage() {
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
-  useEffect(() => { fetchArtworks(); }, []);
+  useEffect(() => {
+    const saved = sessionStorage.getItem("admin_token");
+    if (saved) setToken(saved);
+    setAuthLoading(false);
+  }, []);
+
+  useEffect(() => { if (token) fetchArtworks(); }, [token]);
+
+  function authHeaders(): HeadersInit {
+    return token ? { "x-admin-token": token } : {};
+  }
+
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setAuthError("");
+    try {
+      const res = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setAuthError(data.error || "Login failed."); return; }
+      sessionStorage.setItem("admin_token", data.token);
+      setToken(data.token);
+      setPassword("");
+    } catch {
+      setAuthError("Login failed.");
+    }
+  }
+
+  function handleLogout() {
+    sessionStorage.removeItem("admin_token");
+    setToken(null);
+    setArtworks([]);
+  }
 
   async function fetchArtworks() {
     try {
-      const res = await fetch("/api/portfolio", { cache: "no-store" });
+      const res = await fetch("/api/portfolio", { cache: "no-store", headers: authHeaders() });
+      if (res.status === 401) { handleLogout(); return; }
       if (res.ok) setArtworks(await res.json());
       else toast("error", "Failed to load portfolio.");
     } catch { toast("error", "Failed to load portfolio."); }
@@ -89,7 +130,7 @@ export default function AdminPage() {
       setUploadProgress(`Uploading ${i + 1} of ${items.length}...`);
       const fd = new FormData();
       fd.append("file", items[i].file);
-      const res = await fetch("/api/upload-image", { method: "POST", body: fd });
+      const res = await fetch("/api/upload-image", { method: "POST", body: fd, headers: authHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed to upload file ${i + 1}`);
       results.push({ url: data.url, name: items[i].name, year: items[i].year, description: items[i].description || undefined });
@@ -116,7 +157,7 @@ export default function AdminPage() {
       formData.append("description", form.description);
       formData.append("imageUrls", JSON.stringify(imageMetas));
 
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await fetch("/api/upload", { method: "POST", body: formData, headers: authHeaders() });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save series");
 
@@ -143,7 +184,7 @@ export default function AdminPage() {
       const allImages = currentSeries ? [...currentSeries.images, ...newMetas] : newMetas;
       const res = await fetch("/api/portfolio", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ id: seriesId, images: allImages }),
       });
       if (!res.ok) throw new Error("Failed to save");
@@ -170,7 +211,7 @@ export default function AdminPage() {
     const remaining = series!.images.filter((img) => imageUrl(img) !== imgUrl);
     setArtworks((prev) => prev.map((a) => a.id === seriesId ? { ...a, images: remaining } : a));
     try {
-      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: seriesId, imageUrl: imgUrl, remainingImages: remaining }) });
+      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ id: seriesId, imageUrl: imgUrl, remainingImages: remaining }) });
       if (!res.ok) { toast("error", "Failed to delete image."); await fetchArtworks(); }
       else toast("success", "Image deleted.");
     } catch { toast("error", "Failed to delete image."); await fetchArtworks(); }
@@ -182,7 +223,7 @@ export default function AdminPage() {
     setDeletingSeries(id);
     setArtworks((prev) => prev.filter((a) => a.id !== id));
     try {
-      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ id }) });
       if (!res.ok) { toast("error", "Delete failed."); await fetchArtworks(); }
       else toast("success", `"${title}" deleted.`);
     } catch { toast("error", "Delete failed."); await fetchArtworks(); }
@@ -214,7 +255,7 @@ export default function AdminPage() {
     setEditingImageKey(null);
 
     try {
-      const res = await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: seriesId, images: updatedImages }) });
+      const res = await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ id: seriesId, images: updatedImages }) });
       if (res.ok) toast("success", "Image details saved.");
       else toast("error", "Failed to save.");
     } catch { toast("error", "Failed to save."); }
@@ -229,7 +270,7 @@ export default function AdminPage() {
   async function handleSaveEdit(id: string) {
     setSaving(true);
     try {
-      const res = await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...editForm }) });
+      const res = await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ id, ...editForm }) });
       if (res.ok) { setArtworks((prev) => prev.map((a) => a.id === id ? { ...a, ...editForm } : a)); setEditingId(null); toast("success", `"${editForm.title}" saved.`); }
     } catch { toast("error", "Failed to save."); }
     finally { setSaving(false); }
@@ -245,7 +286,7 @@ export default function AdminPage() {
     imgs.splice(target, 0, moved);
     setArtworks((prev) => prev.map((a) => a.id === seriesId ? { ...a, images: imgs } : a));
     try {
-      await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: seriesId, images: imgs }) });
+      await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify({ id: seriesId, images: imgs }) });
       toast("success", "Order saved.");
     } catch { toast("error", "Failed to save order."); await fetchArtworks(); }
   }
@@ -277,6 +318,32 @@ export default function AdminPage() {
     );
   }
 
+  if (authLoading) return null;
+
+  if (!token) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-warm-50 px-6">
+        <form onSubmit={handleLogin} className="w-full max-w-sm rounded-sm border border-warm-200 bg-white p-8">
+          <h1 className="mb-2 font-serif text-2xl text-warm-900">Admin Login</h1>
+          <p className="mb-6 text-sm text-warm-500">Enter the admin password to continue.</p>
+          {authError && <p className="mb-4 rounded-sm bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-800">{authError}</p>}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoFocus
+            className={`${ic} mb-4`}
+          />
+          <button type="submit" className="w-full rounded-sm bg-warm-900 py-3 text-sm tracking-widest uppercase text-warm-50 hover:bg-warm-800">
+            Log In
+          </button>
+          <Link href="/" className="mt-4 block text-center text-xs tracking-widest uppercase text-warm-400 active:text-warm-900">&larr; Back to Site</Link>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
       <div className="mb-12 flex items-center justify-between">
@@ -284,7 +351,10 @@ export default function AdminPage() {
           <h1 className="font-serif text-3xl text-warm-900">Portfolio Admin</h1>
           <p className="mt-1 text-sm text-warm-500">Create and manage portfolio series</p>
         </div>
-        <Link href="/" className="text-sm tracking-widest uppercase text-warm-500 active:text-warm-900">&larr; View Site</Link>
+        <div className="flex items-center gap-4">
+          <Link href="/" className="text-sm tracking-widest uppercase text-warm-500 active:text-warm-900">&larr; View Site</Link>
+          <button onClick={handleLogout} className="text-sm tracking-widest uppercase text-warm-400 active:text-red-600">Logout</button>
+        </div>
       </div>
 
       {/* Create new series */}

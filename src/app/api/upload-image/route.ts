@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { uploadArtworkImage } from "@/lib/portfolio-data";
+import { verifyRequest, unauthorizedResponse } from "@/lib/auth";
 
 export async function POST(request: Request) {
+  if (!verifyRequest(request)) return unauthorizedResponse();
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
     return NextResponse.json(
       { error: "BLOB_READ_WRITE_TOKEN is not set." },

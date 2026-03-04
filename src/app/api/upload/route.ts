@@ -4,12 +4,14 @@ import {
   getPortfolioManifest,
   savePortfolioManifest,
 } from "@/lib/portfolio-data";
+import { verifyRequest, unauthorizedResponse } from "@/lib/auth";
 
 function tryRevalidate() {
   try { revalidatePath("/"); } catch { /* non-critical */ }
 }
 
 export async function POST(request: Request) {
+  if (!verifyRequest(request)) return unauthorizedResponse();
   let formData: FormData;
   try {
     formData = await request.formData();

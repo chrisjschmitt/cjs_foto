@@ -7,6 +7,7 @@ import {
   imageUrl as getImageUrl,
 } from "@/lib/portfolio-data";
 import type { StoredArtwork } from "@/lib/portfolio-data";
+import { verifyRequest, unauthorizedResponse } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
+  if (!verifyRequest(request)) return unauthorizedResponse();
   const { id, imageUrl, remainingImages } = await request.json();
   const artworks = await getPortfolioManifest();
 
@@ -66,6 +68,7 @@ export async function DELETE(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  if (!verifyRequest(request)) return unauthorizedResponse();
   const body = await request.json();
   const { id, title, category, year, description, images } = body;
   const artworks = await getPortfolioManifest();
