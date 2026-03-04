@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import type { StoredArtwork } from "@/lib/portfolio-data";
 import Image from "next/image";
 import Link from "next/link";
@@ -14,9 +14,18 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: "", category: "", year: "", description: "" });
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [deletingImage, setDeletingImage] = useState<string | null>(null);
+  const [deletingSeries, setDeletingSeries] = useState<string | null>(null);
+  const [toasts, setToasts] = useState<{ id: number; type: "success" | "error"; text: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const toastId = useRef(0);
+
+  const toast = useCallback((type: "success" | "error", text: string) => {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev, { id, type, text }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -31,16 +40,16 @@ export default function AdminPage() {
 
   async function fetchArtworks() {
     try {
-      const res = await fetch("/api/portfolio");
+      const res = await fetch("/api/portfolio", { cache: "no-store" });
       if (res.ok) {
         setArtworks(await res.json());
       } else {
         const data = await res.json().catch(() => ({}));
-        setMessage({ type: "error", text: data.error || `Failed to load portfolio (HTTP ${res.status}).` });
+        toast("error", data.error || `Failed to load portfolio (HTTP ${res.status}).`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
-      setMessage({ type: "error", text: `Failed to load portfolio: ${msg}` });
+      toast("error", `Failed to load portfolio: ${msg}`);
     } finally {
       setLoading(false);
     }
@@ -50,18 +59,17 @@ export default function AdminPage() {
     e.preventDefault();
 
     if (!form.title || !form.category || !form.year || !form.description) {
-      setMessage({ type: "error", text: "Please fill in all fields." });
+      toast("error", "Please fill in all fields.");
       return;
     }
 
     const fileList = fileRef.current?.files;
     if (!fileList || fileList.length === 0) {
-      setMessage({ type: "error", text: "Please select at least one image." });
+      toast("error", "Please select at least one image.");
       return;
     }
 
     setUploading(true);
-    setMessage(null);
 
     try {
       const formData = new FormData();
@@ -77,13 +85,13 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
-      setMessage({ type: "success", text: `"${form.title}" created with ${fileList.length} image${fileList.length > 1 ? "s" : ""}.` });
+      toast("success", `"${form.title}" created with ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
       setForm({ title: "", category: "", year: new Date().getFullYear().toString(), description: "" });
       if (fileRef.current) fileRef.current.value = "";
       await fetchArtworks();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Upload failed";
-      setMessage({ type: "error", text: msg });
+      toast("error", msg);
     } finally {
       setUploading(false);
     }
@@ -93,12 +101,11 @@ export default function AdminPage() {
     const input = addFileRefs.current[seriesId];
     const fileList = input?.files;
     if (!fileList || fileList.length === 0) {
-      setMessage({ type: "error", text: "Please select at least one image to add." });
+      toast("error", "Please select at least one image to add.");
       return;
     }
 
     setAddingImages(true);
-    setMessage(null);
 
     try {
       const formData = new FormData();
@@ -111,13 +118,13 @@ export default function AdminPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
 
-      setMessage({ type: "success", text: `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.` });
+      toast("success", `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
       setAddingTo(null);
       if (input) input.value = "";
       await fetchArtworks();
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to add images";
-      setMessage({ type: "error", text: msg });
+      toast("error", msg);
     } finally {
       setAddingImages(false);
     }
@@ -131,6 +138,7 @@ export default function AdminPage() {
     }
     if (!confirm("Delete this image?")) return;
 
+    setDeletingImage(imageUrl);
     try {
       const res = await fetch("/api/portfolio", {
         method: "DELETE",
@@ -139,16 +147,21 @@ export default function AdminPage() {
       });
       if (res.ok) {
         setArtworks(await res.json());
-        setMessage({ type: "success", text: "Image removed." });
+        toast("success", "Image deleted.");
+      } else {
+        toast("error", "Failed to delete image.");
       }
     } catch {
-      setMessage({ type: "error", text: "Failed to delete image." });
+      toast("error", "Failed to delete image.");
+    } finally {
+      setDeletingImage(null);
     }
   }
 
   async function handleDeleteSeries(id: string, title: string) {
     if (!confirm(`Delete the entire "${title}" series and all its images? This cannot be undone.`)) return;
 
+    setDeletingSeries(id);
     try {
       const res = await fetch("/api/portfolio", {
         method: "DELETE",
@@ -157,10 +170,14 @@ export default function AdminPage() {
       });
       if (res.ok) {
         setArtworks(await res.json());
-        setMessage({ type: "success", text: `"${title}" deleted.` });
+        toast("success", `"${title}" deleted.`);
+      } else {
+        toast("error", "Delete failed.");
       }
     } catch {
-      setMessage({ type: "error", text: "Delete failed." });
+      toast("error", "Delete failed.");
+    } finally {
+      setDeletingSeries(null);
     }
   }
 
@@ -189,10 +206,10 @@ export default function AdminPage() {
       if (res.ok) {
         setArtworks(await res.json());
         setEditingId(null);
-        setMessage({ type: "success", text: `"${editForm.title}" updated.` });
+        toast("success", `"${editForm.title}" saved.`);
       }
     } catch {
-      setMessage({ type: "error", text: "Failed to save changes." });
+      toast("error", "Failed to save changes.");
     } finally {
       setSaving(false);
     }
@@ -218,9 +235,12 @@ export default function AdminPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: seriesId, images: imgs }),
       });
-      if (res.ok) setArtworks(await res.json());
+      if (res.ok) {
+        setArtworks(await res.json());
+        toast("success", "Order saved.");
+      }
     } catch {
-      setMessage({ type: "error", text: "Failed to save new order." });
+      toast("error", "Failed to save new order.");
       await fetchArtworks();
     }
   }
@@ -245,27 +265,13 @@ export default function AdminPage() {
         </Link>
       </div>
 
-      {message && (
-        <div
-          className={`mb-8 rounded-sm px-4 py-3 text-sm ${
-            message.type === "success"
-              ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
-              : "bg-red-50 text-red-800 border border-red-200"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
-
       {/* Create new series */}
       <form onSubmit={handleCreateSeries} noValidate className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
         <h2 className="mb-6 font-serif text-xl text-warm-900">Create New Series</h2>
 
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">
-              Images
-            </label>
+            <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Images</label>
             <input
               ref={fileRef}
               type="file"
@@ -279,17 +285,14 @@ export default function AdminPage() {
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Title</label>
             <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Copper Veins" className={inputClass} />
           </div>
-
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Category</label>
             <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Macro, Landscape, Portrait" className={inputClass} />
           </div>
-
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Year</label>
             <input type="text" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className={inputClass} />
           </div>
-
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Description</label>
             <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of the series" className={inputClass} />
@@ -313,7 +316,7 @@ export default function AdminPage() {
       ) : (
         <div className="space-y-6">
           {artworks.map((artwork) => (
-            <div key={artwork.id} className="rounded-sm border border-warm-200 bg-white p-5 sm:p-6">
+            <div key={artwork.id} className={`rounded-sm border border-warm-200 bg-white p-5 sm:p-6 transition-opacity ${deletingSeries === artwork.id ? "opacity-50 pointer-events-none" : ""}`}>
               {editingId === artwork.id ? (
                 <div className="space-y-4">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -360,8 +363,12 @@ export default function AdminPage() {
                       <button onClick={() => startEditing(artwork)} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">
                         Edit
                       </button>
-                      <button onClick={() => handleDeleteSeries(artwork.id, artwork.title)} className="text-xs tracking-widest uppercase text-warm-500 active:text-red-600">
-                        Delete
+                      <button
+                        onClick={() => handleDeleteSeries(artwork.id, artwork.title)}
+                        disabled={deletingSeries === artwork.id}
+                        className="text-xs tracking-widest uppercase text-warm-500 active:text-red-600 disabled:opacity-50"
+                      >
+                        {deletingSeries === artwork.id ? "Deleting..." : "Delete"}
                       </button>
                     </div>
                   </div>
@@ -387,13 +394,16 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {/* Image grid with always-visible controls */}
+              {/* Image grid */}
               <p className="mb-2 text-[10px] tracking-widest uppercase text-warm-400">
                 Use arrows to reorder &middot; first image is the cover
               </p>
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
                 {artwork.images.map((img, idx) => (
-                  <div key={img} className="relative overflow-hidden rounded-sm border border-warm-100 bg-warm-100">
+                  <div
+                    key={img}
+                    className={`relative overflow-hidden rounded-sm border border-warm-100 bg-warm-100 transition-opacity ${deletingImage === img ? "opacity-40 pointer-events-none" : ""}`}
+                  >
                     <div className="relative aspect-square">
                       <Image src={img} alt={`${artwork.title} ${idx + 1}`} fill sizes="150px" className="object-cover" />
                       {idx === 0 && (
@@ -402,32 +412,18 @@ export default function AdminPage() {
                         </span>
                       )}
                     </div>
-                    {/* Always-visible controls bar */}
                     <div className="flex items-center justify-between border-t border-warm-100 bg-white px-1.5 py-1">
                       <div className="flex gap-1">
-                        <button
-                          onClick={() => moveImage(artwork.id, idx, -1)}
-                          disabled={idx === 0}
-                          className={`${btnSmall} ${idx === 0 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`}
-                          aria-label="Move left"
-                        >
-                          &larr;
-                        </button>
-                        <button
-                          onClick={() => moveImage(artwork.id, idx, 1)}
-                          disabled={idx === artwork.images.length - 1}
-                          className={`${btnSmall} ${idx === artwork.images.length - 1 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`}
-                          aria-label="Move right"
-                        >
-                          &rarr;
-                        </button>
+                        <button onClick={() => moveImage(artwork.id, idx, -1)} disabled={idx === 0} className={`${btnSmall} ${idx === 0 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`} aria-label="Move left">&larr;</button>
+                        <button onClick={() => moveImage(artwork.id, idx, 1)} disabled={idx === artwork.images.length - 1} className={`${btnSmall} ${idx === artwork.images.length - 1 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`} aria-label="Move right">&rarr;</button>
                       </div>
                       <button
                         onClick={() => handleDeleteImage(artwork.id, img)}
-                        className={`${btnSmall} bg-red-50 text-red-500 active:bg-red-100`}
+                        disabled={deletingImage === img}
+                        className={`${btnSmall} bg-red-50 text-red-500 active:bg-red-100 disabled:opacity-50`}
                         aria-label="Delete image"
                       >
-                        &times;
+                        {deletingImage === img ? "..." : "\u00d7"}
                       </button>
                     </div>
                   </div>
@@ -437,6 +433,22 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      {/* Toast notifications — fixed at bottom */}
+      <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`animate-[fadeInUp_0.3s_ease-out] rounded-lg px-5 py-3 text-sm font-medium shadow-lg ${
+              t.type === "success"
+                ? "bg-warm-900 text-warm-50"
+                : "bg-red-600 text-white"
+            }`}
+          >
+            {t.type === "success" ? "\u2713 " : "\u2717 "}{t.text}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
