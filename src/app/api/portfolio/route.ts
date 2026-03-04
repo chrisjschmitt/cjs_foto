@@ -29,18 +29,28 @@ export async function GET() {
 }
 
 export async function DELETE(request: Request) {
-  const { id, imageUrl } = await request.json();
+  const { id, imageUrl, remainingImages } = await request.json();
   const artworks = await getPortfolioManifest();
 
   if (imageUrl) {
+    await deleteArtworkImage(imageUrl);
+
+    if (Array.isArray(remainingImages)) {
+      const updated = artworks.map((a) =>
+        a.id === id ? { ...a, images: remainingImages } : a
+      );
+      await savePortfolioManifest(updated);
+      tryRevalidate();
+      return jsonResponse({ ok: true });
+    }
+
     const artwork = artworks.find((a) => a.id === id);
     if (artwork) {
-      await deleteArtworkImage(imageUrl);
       artwork.images = artwork.images.filter((img) => img !== imageUrl);
     }
     await savePortfolioManifest(artworks);
     tryRevalidate();
-    return jsonResponse(artworks);
+    return jsonResponse({ ok: true });
   }
 
   const artwork = artworks.find((a) => a.id === id);
@@ -51,7 +61,7 @@ export async function DELETE(request: Request) {
   const updated = artworks.filter((a) => a.id !== id);
   await savePortfolioManifest(updated);
   tryRevalidate();
-  return jsonResponse(updated);
+  return jsonResponse({ ok: true });
 }
 
 export async function PUT(request: Request) {
@@ -72,5 +82,5 @@ export async function PUT(request: Request) {
 
   await savePortfolioManifest(updated);
   tryRevalidate();
-  return jsonResponse(updated);
+  return jsonResponse({ ok: true });
 }

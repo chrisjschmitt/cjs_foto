@@ -143,16 +143,17 @@ export default function AdminPage() {
     if (!confirm("Delete this image?")) return;
 
     setDeletingImage(imageUrl);
+    const remaining = series!.images.filter((img) => img !== imageUrl);
     setArtworks((prev) =>
       prev.map((a) =>
-        a.id === seriesId ? { ...a, images: a.images.filter((img) => img !== imageUrl) } : a
+        a.id === seriesId ? { ...a, images: remaining } : a
       )
     );
     try {
       const res = await fetch("/api/portfolio", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: seriesId, imageUrl }),
+        body: JSON.stringify({ id: seriesId, imageUrl, remainingImages: remaining }),
       });
       if (!res.ok) {
         toast("error", "Failed to delete image. Refreshing...");
