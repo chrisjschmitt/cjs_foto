@@ -34,6 +34,11 @@ export async function POST(request: Request) {
     }
   }
 
-  await savePortfolioManifest(series);
-  return NextResponse.json({ restored: series.length });
+  try {
+    await savePortfolioManifest(series);
+    return NextResponse.json({ restored: series.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
