@@ -11,18 +11,35 @@ export async function GET() {
     .filter((b) => !b.pathname.endsWith(".json"))
     .map((b) => b.url);
 
-  const { blobs: manifestBlobs } = await list({ prefix: "portfolio/manifest" });
+  const { blobs: manifestBlobs } = await list({ prefix: "portfolio/manifest.json" });
   const manifestInfo = manifestBlobs.map((b) => ({
     pathname: b.pathname,
     url: b.url,
     size: b.size,
-    uploadedAt: b.uploadedAt,
   }));
+
+  let manifestData = null;
+  let manifestError = null;
+  if (manifestBlobs.length > 0) {
+    try {
+      const url = `${manifestBlobs[0].url}?t=${Date.now()}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        manifestData = { count: data.length, firstTitle: data[0]?.title };
+      } else {
+        manifestError = `fetch status ${res.status}`;
+      }
+    } catch (err) {
+      manifestError = err instanceof Error ? err.message : String(err);
+    }
+  }
 
   return NextResponse.json({
     imageCount: imageUrls.length,
-    images: imageUrls,
     manifests: manifestInfo,
+    manifestData,
+    manifestError,
   });
 }
 
