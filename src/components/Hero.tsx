@@ -10,9 +10,9 @@ export default function Hero() {
         <p className="mb-4 text-sm tracking-[0.3em] uppercase text-warm-500">
           Visual Art &amp; Photography
         </p>
-        <h2 className="font-serif text-6xl font-light leading-tight tracking-tight text-warm-900 sm:text-7xl lg:text-8xl">
+        <h1 className="text-3xl font-light leading-tight tracking-tight text-warm-900 sm:text-4xl lg:text-[2.5rem]" style={{ fontFamily: "Helvetica, Arial, sans-serif" }}>
           Christopher Schmitt Photographs
-        </h2>
+        </h1>
         <p className="mx-auto mt-6 max-w-lg text-lg leading-relaxed text-warm-600">
           A curated collection of my work — captured
           through the lens and shaped by my imagination.
