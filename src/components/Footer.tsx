@@ -18,7 +18,9 @@ export default function Footer() {
             </a>
             <div className="flex gap-6">
               <a
-                href="#"
+                href="https://www.instagram.com/cjs_foto"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
               >
                 Instagram
