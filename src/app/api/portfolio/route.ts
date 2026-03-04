@@ -4,6 +4,7 @@ import {
   getPortfolioManifest,
   savePortfolioManifest,
   deleteArtworkImage,
+  imageUrl as getImageUrl,
 } from "@/lib/portfolio-data";
 import type { StoredArtwork } from "@/lib/portfolio-data";
 
@@ -55,7 +56,7 @@ export async function DELETE(request: Request) {
 
   const artwork = artworks.find((a) => a.id === id);
   if (artwork) {
-    await Promise.all(artwork.images.map((img) => deleteArtworkImage(img)));
+    await Promise.all(artwork.images.map((img) => deleteArtworkImage(getImageUrl(img))));
   }
 
   const updated = artworks.filter((a) => a.id !== id);

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ArtworkItem } from "./Portfolio";
+import { imageUrl } from "@/lib/portfolio-data";
 
 interface Props {
   artwork: ArtworkItem;
@@ -8,6 +9,7 @@ interface Props {
 
 export default function PortfolioCard({ artwork, onClick }: Props) {
   const cover = artwork.images[0];
+  const coverUrl = cover ? imageUrl(cover) : null;
 
   return (
     <button
@@ -15,9 +17,9 @@ export default function PortfolioCard({ artwork, onClick }: Props) {
       className="group block w-full overflow-hidden rounded-sm bg-white text-left shadow-sm transition-all hover:shadow-lg"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-warm-100">
-        {cover && (
+        {coverUrl && (
           <Image
-            src={cover}
+            src={coverUrl}
             alt={artwork.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

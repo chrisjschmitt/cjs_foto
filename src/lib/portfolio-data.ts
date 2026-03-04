@@ -1,13 +1,29 @@
 import { put, list, del } from "@vercel/blob";
 
+export interface ImageMeta {
+  url: string;
+  name: string;
+  year: string;
+  description?: string;
+}
+
 export interface StoredArtwork {
   id: string;
   title: string;
   category: string;
   year: string;
   description: string;
-  images: string[];
+  images: (string | ImageMeta)[];
   createdAt: string;
+}
+
+export function normalizeImage(img: string | ImageMeta): ImageMeta {
+  if (typeof img === "string") return { url: img, name: "", year: "" };
+  return img;
+}
+
+export function imageUrl(img: string | ImageMeta): string {
+  return typeof img === "string" ? img : img.url;
 }
 
 const MANIFEST_KEY = "portfolio/manifest.json";

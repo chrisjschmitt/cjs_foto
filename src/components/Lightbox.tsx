@@ -2,16 +2,18 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
+import type { ImageMeta } from "@/lib/portfolio-data";
+import { normalizeImage, imageUrl } from "@/lib/portfolio-data";
 
 interface LightboxProps {
-  images: string[];
-  title: string;
-  description: string;
+  images: (string | ImageMeta)[];
+  seriesTitle: string;
+  seriesDescription: string;
   initialIndex?: number;
   onClose: () => void;
 }
 
-export default function Lightbox({ images, title, description, initialIndex = 0, onClose }: LightboxProps) {
+export default function Lightbox({ images, seriesTitle, seriesDescription, initialIndex = 0, onClose }: LightboxProps) {
   const [current, setCurrent] = useState(initialIndex);
   const touchStart = useRef<number | null>(null);
 
@@ -51,6 +53,11 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
     touchStart.current = null;
   }
 
+  const meta = normalizeImage(images[current]);
+  const url = imageUrl(images[current]);
+  const displayName = meta.name || seriesTitle;
+  const displayDesc = meta.description || seriesDescription;
+
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90"
@@ -62,8 +69,12 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 flex items-center justify-between px-4 py-4 sm:px-6">
           <div className="min-w-0 flex-1">
-            <h2 className="truncate font-serif text-base text-white sm:text-lg">{title}</h2>
-            <p className="truncate text-xs text-white/50">{description}</p>
+            <h2 className="truncate font-serif text-base text-white sm:text-lg">{displayName}</h2>
+            <p className="text-xs text-white/50">
+              {meta.year && <span>{meta.year}</span>}
+              {meta.year && displayDesc && <span> &middot; </span>}
+              {displayDesc && <span>{displayDesc}</span>}
+            </p>
           </div>
           <div className="flex flex-shrink-0 items-center gap-3 pl-3">
             <span className="text-sm tabular-nums text-white/60">
@@ -84,8 +95,8 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
         {/* Image */}
         <div className="relative h-[calc(100%-6rem)] w-full sm:h-[calc(100%-8rem)]">
           <Image
-            src={images[current]}
-            alt={`${title} — ${current + 1} of ${images.length}`}
+            src={url}
+            alt={displayName}
             fill
             sizes="100vw"
             className="object-contain"
@@ -122,13 +133,13 @@ export default function Lightbox({ images, title, description, initialIndex = 0,
           <div className="absolute bottom-2 flex gap-2 overflow-x-auto px-4 sm:bottom-4 sm:px-6">
             {images.map((img, idx) => (
               <button
-                key={img}
+                key={imageUrl(img)}
                 onClick={(e) => { e.stopPropagation(); setCurrent(idx); }}
                 className={`relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-sm transition-all sm:h-12 sm:w-12 ${
                   idx === current ? "ring-2 ring-white ring-offset-1 ring-offset-black" : "opacity-50 active:opacity-80"
                 }`}
               >
-                <Image src={img} alt="" fill sizes="48px" className="object-cover" />
+                <Image src={imageUrl(img)} alt="" fill sizes="48px" className="object-cover" />
               </button>
             ))}
           </div>

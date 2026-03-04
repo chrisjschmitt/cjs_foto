@@ -1,9 +1,18 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { StoredArtwork } from "@/lib/portfolio-data";
+import type { StoredArtwork, ImageMeta } from "@/lib/portfolio-data";
+import { normalizeImage, imageUrl } from "@/lib/portfolio-data";
 import Image from "next/image";
 import Link from "next/link";
+
+interface PendingImage {
+  file: File;
+  name: string;
+  year: string;
+  description: string;
+  preview: string;
+}
 
 export default function AdminPage() {
   const [artworks, setArtworks] = useState<StoredArtwork[]>([]);
@@ -12,21 +21,19 @@ export default function AdminPage() {
   const [uploadProgress, setUploadProgress] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [addingImages, setAddingImages] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<PendingImage[]>([]);
+  const [addPendingFiles, setAddPendingFiles] = useState<PendingImage[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ title: "", category: "", year: "", description: "" });
+  const [editingImageKey, setEditingImageKey] = useState<string | null>(null);
+  const [editImageForm, setEditImageForm] = useState({ name: "", year: "", description: "" });
   const [saving, setSaving] = useState(false);
   const [deletingImage, setDeletingImage] = useState<string | null>(null);
   const [deletingSeries, setDeletingSeries] = useState<string | null>(null);
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error"; text: string }[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
-  const addFileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const addFileRef = useRef<HTMLInputElement>(null);
   const toastId = useRef(0);
-
-  const toast = useCallback((type: "success" | "error", text: string) => {
-    const id = ++toastId.current;
-    setToasts((prev) => [...prev, { id, type, text }]);
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
-  }, []);
 
   const [form, setForm] = useState({
     title: "",
@@ -35,60 +42,71 @@ export default function AdminPage() {
     description: "",
   });
 
-  useEffect(() => {
-    fetchArtworks();
+  const toast = useCallback((type: "success" | "error", text: string) => {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev, { id, type, text }]);
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
+
+  useEffect(() => { fetchArtworks(); }, []);
 
   async function fetchArtworks() {
     try {
       const res = await fetch("/api/portfolio", { cache: "no-store" });
-      if (res.ok) {
-        setArtworks(await res.json());
-      } else {
-        const data = await res.json().catch(() => ({}));
-        toast("error", data.error || `Failed to load portfolio (HTTP ${res.status}).`);
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      toast("error", `Failed to load portfolio: ${msg}`);
-    } finally {
-      setLoading(false);
-    }
+      if (res.ok) setArtworks(await res.json());
+      else toast("error", "Failed to load portfolio.");
+    } catch { toast("error", "Failed to load portfolio."); }
+    finally { setLoading(false); }
   }
 
-  async function uploadFilesOneByOne(fileList: FileList): Promise<string[]> {
-    const urls: string[] = [];
-    for (let i = 0; i < fileList.length; i++) {
-      setUploadProgress(`Uploading ${i + 1} of ${fileList.length}...`);
+  function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>, target: "create" | "add") {
+    const files = e.target.files;
+    if (!files) return;
+    const items: PendingImage[] = Array.from(files).map((f) => ({
+      file: f,
+      name: f.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " "),
+      year: form.year || new Date().getFullYear().toString(),
+      description: "",
+      preview: URL.createObjectURL(f),
+    }));
+    if (target === "create") setPendingFiles(items);
+    else setAddPendingFiles(items);
+  }
+
+  function updatePending(idx: number, field: string, value: string, target: "create" | "add") {
+    const setter = target === "create" ? setPendingFiles : setAddPendingFiles;
+    setter((prev) => prev.map((p, i) => (i === idx ? { ...p, [field]: value } : p)));
+  }
+
+  function removePending(idx: number, target: "create" | "add") {
+    const setter = target === "create" ? setPendingFiles : setAddPendingFiles;
+    setter((prev) => { URL.revokeObjectURL(prev[idx].preview); return prev.filter((_, i) => i !== idx); });
+  }
+
+  async function uploadPendingFiles(items: PendingImage[]): Promise<ImageMeta[]> {
+    const results: ImageMeta[] = [];
+    for (let i = 0; i < items.length; i++) {
+      setUploadProgress(`Uploading ${i + 1} of ${items.length}...`);
       const fd = new FormData();
-      fd.append("file", fileList[i]);
+      fd.append("file", items[i].file);
       const res = await fetch("/api/upload-image", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || `Failed to upload file ${i + 1}`);
-      urls.push(data.url);
+      results.push({ url: data.url, name: items[i].name, year: items[i].year, description: items[i].description || undefined });
     }
     setUploadProgress("");
-    return urls;
+    return results;
   }
 
   async function handleCreateSeries(e: React.FormEvent) {
     e.preventDefault();
-
-    if (!form.title || !form.category || !form.year || !form.description) {
-      toast("error", "Please fill in all fields.");
-      return;
-    }
-
-    const fileList = fileRef.current?.files;
-    if (!fileList || fileList.length === 0) {
-      toast("error", "Please select at least one image.");
-      return;
-    }
+    if (!form.title || !form.category || !form.year || !form.description) { toast("error", "Please fill in all fields."); return; }
+    if (pendingFiles.length === 0) { toast("error", "Please select at least one image."); return; }
+    for (const p of pendingFiles) { if (!p.name || !p.year) { toast("error", "Each image needs a name and year."); return; } }
 
     setUploading(true);
-
     try {
-      const imageUrls = await uploadFilesOneByOne(fileList);
+      const imageMetas = await uploadPendingFiles(pendingFiles);
       setUploadProgress("Saving series...");
 
       const formData = new FormData();
@@ -96,41 +114,33 @@ export default function AdminPage() {
       formData.append("category", form.category);
       formData.append("year", form.year);
       formData.append("description", form.description);
-      formData.append("imageUrls", JSON.stringify(imageUrls));
+      formData.append("imageUrls", JSON.stringify(imageMetas));
 
       const res = await fetch("/api/upload", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save series");
 
       setArtworks((prev) => [data, ...prev]);
-      toast("success", `"${form.title}" created with ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
+      toast("success", `"${form.title}" created.`);
       setForm({ title: "", category: "", year: new Date().getFullYear().toString(), description: "" });
+      pendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+      setPendingFiles([]);
       if (fileRef.current) fileRef.current.value = "";
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Upload failed";
-      toast("error", msg);
-    } finally {
-      setUploading(false);
-      setUploadProgress("");
-    }
+    } catch (err) { toast("error", err instanceof Error ? err.message : "Upload failed"); }
+    finally { setUploading(false); setUploadProgress(""); }
   }
 
   async function handleAddImages(seriesId: string) {
-    const input = addFileRefs.current[seriesId];
-    const fileList = input?.files;
-    if (!fileList || fileList.length === 0) {
-      toast("error", "Please select at least one image to add.");
-      return;
-    }
+    if (addPendingFiles.length === 0) { toast("error", "Please select at least one image."); return; }
+    for (const p of addPendingFiles) { if (!p.name || !p.year) { toast("error", "Each image needs a name and year."); return; } }
 
     setAddingImages(true);
-
     const currentSeries = artworks.find((a) => a.id === seriesId);
     try {
-      const newUrls = await uploadFilesOneByOne(fileList);
+      const newMetas = await uploadPendingFiles(addPendingFiles);
       setUploadProgress("Saving...");
 
-      const allImages = currentSeries ? [...currentSeries.images, ...newUrls] : newUrls;
+      const allImages = currentSeries ? [...currentSeries.images, ...newMetas] : newMetas;
       const res = await fetch("/api/portfolio", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -138,23 +148,17 @@ export default function AdminPage() {
       });
       if (!res.ok) throw new Error("Failed to save");
 
-      setArtworks((prev) =>
-        prev.map((a) =>
-          a.id === seriesId ? { ...a, images: allImages } : a
-        )
-      );
-      toast("success", `Added ${fileList.length} image${fileList.length > 1 ? "s" : ""}.`);
+      setArtworks((prev) => prev.map((a) => a.id === seriesId ? { ...a, images: allImages } : a));
+      toast("success", `Added ${addPendingFiles.length} image${addPendingFiles.length > 1 ? "s" : ""}.`);
+      addPendingFiles.forEach((p) => URL.revokeObjectURL(p.preview));
+      setAddPendingFiles([]);
       setAddingTo(null);
-      if (input) input.value = "";
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to add images";
-      toast("error", msg);
-    } finally {
-      setAddingImages(false);
-    }
+      if (addFileRef.current) addFileRef.current.value = "";
+    } catch (err) { toast("error", err instanceof Error ? err.message : "Failed to add images"); }
+    finally { setAddingImages(false); setUploadProgress(""); }
   }
 
-  async function handleDeleteImage(seriesId: string, imageUrl: string) {
+  async function handleDeleteImage(seriesId: string, imgUrl: string) {
     const series = artworks.find((a) => a.id === seriesId);
     if (series && series.images.length <= 1) {
       if (!confirm(`This is the last image. Deleting it will remove the entire series "${series.title}". Continue?`)) return;
@@ -162,92 +166,73 @@ export default function AdminPage() {
     }
     if (!confirm("Delete this image?")) return;
 
-    setDeletingImage(imageUrl);
-    const remaining = series!.images.filter((img) => img !== imageUrl);
-    setArtworks((prev) =>
-      prev.map((a) =>
-        a.id === seriesId ? { ...a, images: remaining } : a
-      )
-    );
+    setDeletingImage(imgUrl);
+    const remaining = series!.images.filter((img) => imageUrl(img) !== imgUrl);
+    setArtworks((prev) => prev.map((a) => a.id === seriesId ? { ...a, images: remaining } : a));
     try {
-      const res = await fetch("/api/portfolio", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: seriesId, imageUrl, remainingImages: remaining }),
-      });
-      if (!res.ok) {
-        toast("error", "Failed to delete image. Refreshing...");
-        await fetchArtworks();
-      } else {
-        toast("success", "Image deleted.");
-      }
-    } catch {
-      toast("error", "Failed to delete image. Refreshing...");
-      await fetchArtworks();
-    } finally {
-      setDeletingImage(null);
-    }
+      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: seriesId, imageUrl: imgUrl, remainingImages: remaining }) });
+      if (!res.ok) { toast("error", "Failed to delete image."); await fetchArtworks(); }
+      else toast("success", "Image deleted.");
+    } catch { toast("error", "Failed to delete image."); await fetchArtworks(); }
+    finally { setDeletingImage(null); }
   }
 
   async function handleDeleteSeries(id: string, title: string) {
-    if (!confirm(`Delete the entire "${title}" series and all its images? This cannot be undone.`)) return;
-
+    if (!confirm(`Delete "${title}" and all its images?`)) return;
     setDeletingSeries(id);
     setArtworks((prev) => prev.filter((a) => a.id !== id));
     try {
-      const res = await fetch("/api/portfolio", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id }),
-      });
-      if (!res.ok) {
-        toast("error", "Delete failed. Refreshing...");
-        await fetchArtworks();
-      } else {
-        toast("success", `"${title}" deleted.`);
-      }
-    } catch {
-      toast("error", "Delete failed. Refreshing...");
-      await fetchArtworks();
-    } finally {
-      setDeletingSeries(null);
-    }
+      const res = await fetch("/api/portfolio", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+      if (!res.ok) { toast("error", "Delete failed."); await fetchArtworks(); }
+      else toast("success", `"${title}" deleted.`);
+    } catch { toast("error", "Delete failed."); await fetchArtworks(); }
+    finally { setDeletingSeries(null); }
+  }
+
+  function startEditingImage(seriesId: string, idx: number) {
+    const series = artworks.find((a) => a.id === seriesId);
+    if (!series) return;
+    const meta = normalizeImage(series.images[idx]);
+    const key = `${seriesId}:${idx}`;
+    setEditingImageKey(key);
+    setEditImageForm({ name: meta.name, year: meta.year, description: meta.description || "" });
+  }
+
+  async function handleSaveImageEdit(seriesId: string, idx: number) {
+    if (!editImageForm.name || !editImageForm.year) { toast("error", "Name and year are required."); return; }
+    setSaving(true);
+    const series = artworks.find((a) => a.id === seriesId);
+    if (!series) return;
+
+    const updatedImages = series.images.map((img, i) => {
+      if (i !== idx) return img;
+      const meta = normalizeImage(img);
+      return { ...meta, name: editImageForm.name, year: editImageForm.year, description: editImageForm.description || undefined } as ImageMeta;
+    });
+
+    setArtworks((prev) => prev.map((a) => a.id === seriesId ? { ...a, images: updatedImages } : a));
+    setEditingImageKey(null);
+
+    try {
+      const res = await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: seriesId, images: updatedImages }) });
+      if (res.ok) toast("success", "Image details saved.");
+      else toast("error", "Failed to save.");
+    } catch { toast("error", "Failed to save."); }
+    finally { setSaving(false); }
   }
 
   function startEditing(artwork: StoredArtwork) {
     setEditingId(artwork.id);
-    setEditForm({
-      title: artwork.title,
-      category: artwork.category,
-      year: artwork.year,
-      description: artwork.description,
-    });
-  }
-
-  function cancelEditing() {
-    setEditingId(null);
+    setEditForm({ title: artwork.title, category: artwork.category, year: artwork.year, description: artwork.description });
   }
 
   async function handleSaveEdit(id: string) {
     setSaving(true);
     try {
-      const res = await fetch("/api/portfolio", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, ...editForm }),
-      });
-      if (res.ok) {
-        setArtworks((prev) =>
-          prev.map((a) => (a.id === id ? { ...a, ...editForm } : a))
-        );
-        setEditingId(null);
-        toast("success", `"${editForm.title}" saved.`);
-      }
-    } catch {
-      toast("error", "Failed to save changes.");
-    } finally {
-      setSaving(false);
-    }
+      const res = await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id, ...editForm }) });
+      if (res.ok) { setArtworks((prev) => prev.map((a) => a.id === id ? { ...a, ...editForm } : a)); setEditingId(null); toast("success", `"${editForm.title}" saved.`); }
+    } catch { toast("error", "Failed to save."); }
+    finally { setSaving(false); }
   }
 
   async function moveImage(seriesId: string, index: number, direction: -1 | 1) {
@@ -255,34 +240,42 @@ export default function AdminPage() {
     if (!series) return;
     const target = index + direction;
     if (target < 0 || target >= series.images.length) return;
-
     const imgs = [...series.images];
     const [moved] = imgs.splice(index, 1);
     imgs.splice(target, 0, moved);
-
-    setArtworks((prev) =>
-      prev.map((a) => (a.id === seriesId ? { ...a, images: imgs } : a))
-    );
-
+    setArtworks((prev) => prev.map((a) => a.id === seriesId ? { ...a, images: imgs } : a));
     try {
-      const res = await fetch("/api/portfolio", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: seriesId, images: imgs }),
-      });
-      if (res.ok) {
-        toast("success", "Order saved.");
-      }
-    } catch {
-      toast("error", "Failed to save new order.");
-      await fetchArtworks();
-    }
+      await fetch("/api/portfolio", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: seriesId, images: imgs }) });
+      toast("success", "Order saved.");
+    } catch { toast("error", "Failed to save order."); await fetchArtworks(); }
   }
 
-  const inputClass =
-    "w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none";
-  const btnSmall =
-    "flex h-7 w-7 items-center justify-center rounded-sm text-sm transition-colors";
+  const ic = "w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none";
+  const btn7 = "flex h-7 w-7 items-center justify-center rounded-sm text-sm transition-colors";
+
+  function renderPendingList(items: PendingImage[], target: "create" | "add") {
+    if (items.length === 0) return null;
+    return (
+      <div className="mt-4 space-y-3">
+        <p className="text-[10px] tracking-widest uppercase text-warm-400">{items.length} image{items.length > 1 ? "s" : ""} selected — fill in details for each</p>
+        {items.map((p, i) => (
+          <div key={i} className="flex gap-3 rounded-sm border border-warm-100 bg-warm-50 p-3">
+            <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-sm bg-warm-200">
+              <Image src={p.preview} alt={p.name} fill sizes="80px" className="object-cover" unoptimized />
+            </div>
+            <div className="flex-grow space-y-2">
+              <div className="grid gap-2 sm:grid-cols-3">
+                <input type="text" value={p.name} onChange={(e) => updatePending(i, "name", e.target.value, target)} placeholder="Image name *" className={ic} />
+                <input type="text" value={p.year} onChange={(e) => updatePending(i, "year", e.target.value, target)} placeholder="Year *" className={ic} />
+                <input type="text" value={p.description} onChange={(e) => updatePending(i, "description", e.target.value, target)} placeholder="Description (optional)" className={ic} />
+              </div>
+            </div>
+            <button onClick={() => removePending(i, target)} className="flex-shrink-0 self-start text-red-400 active:text-red-600 text-lg leading-none">&times;</button>
+          </div>
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl px-6 py-16">
@@ -291,194 +284,145 @@ export default function AdminPage() {
           <h1 className="font-serif text-3xl text-warm-900">Portfolio Admin</h1>
           <p className="mt-1 text-sm text-warm-500">Create and manage portfolio series</p>
         </div>
-        <Link
-          href="/"
-          className="text-sm tracking-widest uppercase text-warm-500 hover:text-warm-900 transition-colors"
-        >
-          &larr; View Site
-        </Link>
+        <Link href="/" className="text-sm tracking-widest uppercase text-warm-500 active:text-warm-900">&larr; View Site</Link>
       </div>
 
       {/* Create new series */}
       <form onSubmit={handleCreateSeries} noValidate className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
         <h2 className="mb-6 font-serif text-xl text-warm-900">Create New Series</h2>
-
         <div className="grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Images</label>
-            <input
-              ref={fileRef}
-              type="file"
-              multiple
-              className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-100 file:px-4 file:py-1 file:text-xs file:text-warm-700"
-            />
-            <p className="mt-1 text-xs text-warm-400">Select one or more images. The first image will be the cover.</p>
+            <input ref={fileRef} type="file" multiple onChange={(e) => handleFilesSelected(e, "create")} className="w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-100 file:px-4 file:py-1 file:text-xs file:text-warm-700" />
           </div>
-
           <div>
-            <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Title</label>
-            <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Copper Veins" className={inputClass} />
+            <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Series Title</label>
+            <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Copper Veins" className={ic} />
           </div>
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Category</label>
-            <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Macro, Landscape, Portrait" className={inputClass} />
+            <input type="text" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="e.g. Macro, Landscape" className={ic} />
           </div>
           <div>
             <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Year</label>
-            <input type="text" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className={inputClass} />
+            <input type="text" value={form.year} onChange={(e) => setForm({ ...form, year: e.target.value })} className={ic} />
           </div>
           <div>
-            <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Description</label>
-            <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description of the series" className={inputClass} />
+            <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Series Description</label>
+            <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Brief description" className={ic} />
           </div>
         </div>
-
-        <button type="submit" disabled={uploading} className="mt-6 rounded-sm bg-warm-900 px-8 py-3 text-sm tracking-widest uppercase text-warm-50 transition-colors hover:bg-warm-800 disabled:opacity-50">
+        {renderPendingList(pendingFiles, "create")}
+        <button type="submit" disabled={uploading} className="mt-6 rounded-sm bg-warm-900 px-8 py-3 text-sm tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">
           {uploading ? (uploadProgress || "Creating...") : "Create Series"}
         </button>
       </form>
 
       {/* Series list */}
-      <h2 className="mb-6 font-serif text-xl text-warm-900">
-        Portfolio Series ({artworks.length})
-      </h2>
+      <h2 className="mb-6 font-serif text-xl text-warm-900">Portfolio Series ({artworks.length})</h2>
 
-      {loading ? (
-        <p className="text-sm text-warm-500">Loading...</p>
-      ) : artworks.length === 0 ? (
-        <p className="text-sm text-warm-500">No series yet. Create your first one above.</p>
-      ) : (
+      {loading ? <p className="text-sm text-warm-500">Loading...</p> : artworks.length === 0 ? <p className="text-sm text-warm-500">No series yet.</p> : (
         <div className="space-y-6">
           {artworks.map((artwork) => (
             <div key={artwork.id} className={`rounded-sm border border-warm-200 bg-white p-5 sm:p-6 transition-opacity ${deletingSeries === artwork.id ? "opacity-50 pointer-events-none" : ""}`}>
               {editingId === artwork.id ? (
-                <div className="space-y-4">
+                <div className="space-y-4 mb-4">
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                    <div>
-                      <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Title</label>
-                      <input type="text" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Category</label>
-                      <input type="text" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Year</label>
-                      <input type="text" value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Description</label>
-                      <input type="text" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className={inputClass} />
-                    </div>
+                    <div><label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Title</label><input type="text" value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className={ic} /></div>
+                    <div><label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Category</label><input type="text" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })} className={ic} /></div>
+                    <div><label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Year</label><input type="text" value={editForm.year} onChange={(e) => setEditForm({ ...editForm, year: e.target.value })} className={ic} /></div>
+                    <div><label className="mb-1 block text-[10px] tracking-widest uppercase text-warm-400">Description</label><input type="text" value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} className={ic} /></div>
                   </div>
                   <div className="flex gap-3">
-                    <button onClick={() => handleSaveEdit(artwork.id)} disabled={saving} className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">
-                      {saving ? "Saving..." : "Save"}
-                    </button>
-                    <button onClick={cancelEditing} className="rounded-sm border border-warm-200 px-5 py-2 text-xs tracking-widest uppercase text-warm-500 hover:border-warm-400">
-                      Cancel
-                    </button>
+                    <button onClick={() => handleSaveEdit(artwork.id)} disabled={saving} className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">{saving ? "Saving..." : "Save"}</button>
+                    <button onClick={() => setEditingId(null)} className="rounded-sm border border-warm-200 px-5 py-2 text-xs tracking-widest uppercase text-warm-500">Cancel</button>
                   </div>
                 </div>
               ) : (
-                <div className="mb-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="font-serif text-lg text-warm-900">{artwork.title}</h3>
-                      <p className="text-xs text-warm-500">
-                        {artwork.category} &middot; {artwork.year} &middot; {artwork.images.length} image{artwork.images.length !== 1 ? "s" : ""}
-                      </p>
-                      <p className="mt-1 text-xs text-warm-400">{artwork.description}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-2 sm:gap-4">
-                      <button onClick={() => setAddingTo(addingTo === artwork.id ? null : artwork.id)} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">
-                        {addingTo === artwork.id ? "Close" : "+ Add"}
-                      </button>
-                      <button onClick={() => startEditing(artwork)} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDeleteSeries(artwork.id, artwork.title)}
-                        disabled={deletingSeries === artwork.id}
-                        className="text-xs tracking-widest uppercase text-warm-500 active:text-red-600 disabled:opacity-50"
-                      >
-                        {deletingSeries === artwork.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
+                <div className="mb-4 flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="font-serif text-lg text-warm-900">{artwork.title}</h3>
+                    <p className="text-xs text-warm-500">{artwork.category} &middot; {artwork.year} &middot; {artwork.images.length} image{artwork.images.length !== 1 ? "s" : ""}</p>
+                    <p className="mt-1 text-xs text-warm-400">{artwork.description}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 sm:gap-4">
+                    <button onClick={() => { setAddingTo(addingTo === artwork.id ? null : artwork.id); setAddPendingFiles([]); }} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">{addingTo === artwork.id ? "Close" : "+ Add"}</button>
+                    <button onClick={() => startEditing(artwork)} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">Edit</button>
+                    <button onClick={() => handleDeleteSeries(artwork.id, artwork.title)} disabled={deletingSeries === artwork.id} className="text-xs tracking-widest uppercase text-warm-500 active:text-red-600 disabled:opacity-50">{deletingSeries === artwork.id ? "Deleting..." : "Delete"}</button>
                   </div>
                 </div>
               )}
 
-              {/* Add images form */}
+              {/* Add images */}
               {addingTo === artwork.id && (
                 <div className="mb-4 rounded-sm border border-warm-100 bg-warm-50 p-3">
-                  <input
-                    ref={(el) => { addFileRefs.current[artwork.id] = el; }}
-                    type="file"
-                    multiple
-                    className="mb-3 w-full text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-200 file:px-4 file:py-2 file:text-xs file:text-warm-700"
-                  />
-                  <button
-                    onClick={() => handleAddImages(artwork.id)}
-                    disabled={addingImages}
-                    className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50"
-                  >
-                    {addingImages ? (uploadProgress || "Uploading...") : "Upload"}
-                  </button>
+                  <input ref={addFileRef} type="file" multiple onChange={(e) => handleFilesSelected(e, "add")} className="w-full text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-200 file:px-4 file:py-2 file:text-xs file:text-warm-700" />
+                  {renderPendingList(addPendingFiles, "add")}
+                  {addPendingFiles.length > 0 && (
+                    <button onClick={() => handleAddImages(artwork.id)} disabled={addingImages} className="mt-3 rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">
+                      {addingImages ? (uploadProgress || "Uploading...") : "Upload"}
+                    </button>
+                  )}
                 </div>
               )}
 
               {/* Image grid */}
-              <p className="mb-2 text-[10px] tracking-widest uppercase text-warm-400">
-                Use arrows to reorder &middot; first image is the cover
-              </p>
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                {artwork.images.map((img, idx) => (
-                  <div
-                    key={img}
-                    className={`relative overflow-hidden rounded-sm border border-warm-100 bg-warm-100 transition-opacity ${deletingImage === img ? "opacity-40 pointer-events-none" : ""}`}
-                  >
-                    <div className="relative aspect-square">
-                      <Image src={img} alt={`${artwork.title} ${idx + 1}`} fill sizes="150px" className="object-cover" />
-                      {idx === 0 && (
-                        <span className="absolute top-1.5 left-1.5 rounded-sm bg-warm-900/80 px-2 py-0.5 text-[10px] tracking-wider uppercase text-warm-50">
-                          Cover
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between border-t border-warm-100 bg-white px-1.5 py-1">
-                      <div className="flex gap-1">
-                        <button onClick={() => moveImage(artwork.id, idx, -1)} disabled={idx === 0} className={`${btnSmall} ${idx === 0 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`} aria-label="Move left">&larr;</button>
-                        <button onClick={() => moveImage(artwork.id, idx, 1)} disabled={idx === artwork.images.length - 1} className={`${btnSmall} ${idx === artwork.images.length - 1 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`} aria-label="Move right">&rarr;</button>
+              <p className="mb-2 text-[10px] tracking-widest uppercase text-warm-400">Use arrows to reorder &middot; first image is the cover</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {artwork.images.map((img, idx) => {
+                  const meta = normalizeImage(img);
+                  const url = imageUrl(img);
+                  const key = `${artwork.id}:${idx}`;
+                  const isEditing = editingImageKey === key;
+
+                  return (
+                    <div key={url} className={`overflow-hidden rounded-sm border border-warm-100 bg-white transition-opacity ${deletingImage === url ? "opacity-40 pointer-events-none" : ""}`}>
+                      <div className="flex gap-3 p-3">
+                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-sm bg-warm-100">
+                          <Image src={url} alt={meta.name || artwork.title} fill sizes="80px" className="object-cover" />
+                          {idx === 0 && <span className="absolute top-0.5 left-0.5 rounded-sm bg-warm-900/80 px-1.5 py-0.5 text-[8px] tracking-wider uppercase text-warm-50">Cover</span>}
+                        </div>
+                        {isEditing ? (
+                          <div className="flex-grow space-y-1.5">
+                            <input type="text" value={editImageForm.name} onChange={(e) => setEditImageForm({ ...editImageForm, name: e.target.value })} placeholder="Name *" className={ic} />
+                            <input type="text" value={editImageForm.year} onChange={(e) => setEditImageForm({ ...editImageForm, year: e.target.value })} placeholder="Year *" className={ic} />
+                            <input type="text" value={editImageForm.description} onChange={(e) => setEditImageForm({ ...editImageForm, description: e.target.value })} placeholder="Description (optional)" className={ic} />
+                            <div className="flex gap-2 pt-1">
+                              <button onClick={() => handleSaveImageEdit(artwork.id, idx)} disabled={saving} className="rounded-sm bg-warm-900 px-3 py-1 text-[10px] tracking-widest uppercase text-warm-50 disabled:opacity-50">{saving ? "..." : "Save"}</button>
+                              <button onClick={() => setEditingImageKey(null)} className="rounded-sm border border-warm-200 px-3 py-1 text-[10px] tracking-widest uppercase text-warm-500">Cancel</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex-grow min-w-0">
+                            <p className="text-sm font-medium text-warm-900 truncate">{meta.name || <span className="italic text-warm-300">Untitled</span>}</p>
+                            <p className="text-[11px] text-warm-500">{meta.year || "—"}</p>
+                            {meta.description && <p className="mt-0.5 text-[11px] text-warm-400 line-clamp-2">{meta.description}</p>}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleDeleteImage(artwork.id, img)}
-                        disabled={deletingImage === img}
-                        className={`${btnSmall} bg-red-50 text-red-500 active:bg-red-100 disabled:opacity-50`}
-                        aria-label="Delete image"
-                      >
-                        {deletingImage === img ? "..." : "\u00d7"}
-                      </button>
+                      <div className="flex items-center justify-between border-t border-warm-100 bg-warm-50 px-2 py-1">
+                        <div className="flex gap-1">
+                          <button onClick={() => moveImage(artwork.id, idx, -1)} disabled={idx === 0} className={`${btn7} ${idx === 0 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`}>&larr;</button>
+                          <button onClick={() => moveImage(artwork.id, idx, 1)} disabled={idx === artwork.images.length - 1} className={`${btn7} ${idx === artwork.images.length - 1 ? "text-warm-200" : "bg-warm-100 text-warm-600 active:bg-warm-200"}`}>&rarr;</button>
+                        </div>
+                        <div className="flex gap-2">
+                          {!isEditing && <button onClick={() => startEditingImage(artwork.id, idx)} className="text-[10px] tracking-widest uppercase text-warm-400 active:text-warm-900">Edit</button>}
+                          <button onClick={() => handleDeleteImage(artwork.id, url)} disabled={deletingImage === url} className="text-[10px] tracking-widest uppercase text-red-400 active:text-red-600 disabled:opacity-50">{deletingImage === url ? "..." : "Delete"}</button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Toast notifications — fixed at bottom */}
+      {/* Toasts */}
       <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
         {toasts.map((t) => (
-          <div
-            key={t.id}
-            className={`animate-[fadeInUp_0.3s_ease-out] rounded-lg px-5 py-3 text-sm font-medium shadow-lg ${
-              t.type === "success"
-                ? "bg-warm-900 text-warm-50"
-                : "bg-red-600 text-white"
-            }`}
-          >
+          <div key={t.id} className={`animate-[fadeInUp_0.3s_ease-out] rounded-lg px-5 py-3 text-sm font-medium shadow-lg ${t.type === "success" ? "bg-warm-900 text-warm-50" : "bg-red-600 text-white"}`}>
             {t.type === "success" ? "\u2713 " : "\u2717 "}{t.text}
           </div>
         ))}

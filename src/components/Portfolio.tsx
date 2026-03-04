@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import PortfolioCard from "./PortfolioCard";
 import Lightbox from "./Lightbox";
+import type { StoredArtwork, ImageMeta } from "@/lib/portfolio-data";
 
 export interface ArtworkItem {
   id: string;
@@ -10,7 +11,7 @@ export interface ArtworkItem {
   category: string;
   year: string;
   description: string;
-  images: string[];
+  images: (string | ImageMeta)[];
 }
 
 export default function Portfolio() {
@@ -23,7 +24,7 @@ export default function Portfolio() {
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => {
         const mapped: ArtworkItem[] = data.map(
-          (a: { id: string; title: string; category: string; year: string; description: string; images: string[]; imageUrl?: string }) => ({
+          (a: StoredArtwork & { imageUrl?: string }) => ({
             id: a.id,
             title: a.title,
             category: a.category,
@@ -99,8 +100,8 @@ export default function Portfolio() {
       {lightbox && (
         <Lightbox
           images={lightbox.images}
-          title={lightbox.title}
-          description={lightbox.description}
+          seriesTitle={lightbox.title}
+          seriesDescription={lightbox.description}
           onClose={() => setLightbox(null)}
         />
       )}
