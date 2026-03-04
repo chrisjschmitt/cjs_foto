@@ -44,6 +44,7 @@ export async function savePortfolioManifest(
       access: "public",
       contentType: "application/json",
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
   } catch (err) {
     wrapError("manifest-save", err);
