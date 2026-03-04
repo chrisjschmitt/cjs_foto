@@ -11,10 +11,10 @@ export default function Footer() {
           </div>
           <div className="flex flex-col items-center gap-2 md:items-end">
             <a
-              href="mailto:hello@cjsfoto.com"
+              href="mailto:chris@chrisjschmitt.com"
               className="text-sm text-warm-600 transition-colors hover:text-warm-900"
             >
-              hello@cjsfoto.com
+              chris@chrisjschmitt.com
             </a>
             <div className="flex gap-6">
               <a
