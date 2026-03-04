@@ -11,15 +11,15 @@ export default function ArtistStatement() {
         <div className="space-y-6 text-base leading-relaxed text-warm-700 lg:text-lg lg:leading-relaxed">
           <p>
             My work explores the intersections of science, technology, 
-            and art. I'm particularly interested in the impact of disruptive
+            and art. I&apos;m particularly interested in the impact of disruptive
             technologies on society, and broach on topics such as climate 
-            change, poverty, religion and artificial intelligence. Since I'm
+            change, poverty, religion and artificial intelligence. Since I&apos;m
             too lazy to write, I use art as a way of expressing my thoughts.
           </p>
           <p>
             Each image is an invitation to reflect. For example, I may use 
             obsolete technology to express the current state of the world, 
-            or perhaps to envision the future. It's my way of expressing the 
+            or perhaps to envision the future. It&apos;s my way of expressing the 
             never-ending cycle of progress, and how we are so deeply affected 
             by it.
           </p>
