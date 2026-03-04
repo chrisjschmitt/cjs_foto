@@ -77,7 +77,7 @@ export default function Portfolio() {
                 ))}
               </div>
 
-              <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid items-start gap-8 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((artwork) => (
                   <PortfolioCard
                     key={artwork.id}
