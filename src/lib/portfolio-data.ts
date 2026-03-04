@@ -39,21 +39,6 @@ export async function getPortfolioManifest(): Promise<StoredArtwork[]> {
 export async function savePortfolioManifest(
   artworks: StoredArtwork[]
 ): Promise<void> {
-  let blobs;
-  try {
-    ({ blobs } = await list({ prefix: MANIFEST_KEY }));
-  } catch (err) {
-    wrapError("manifest-list", err);
-  }
-
-  for (const blob of blobs) {
-    try {
-      await del(blob.url);
-    } catch (err) {
-      wrapError("manifest-delete", err);
-    }
-  }
-
   try {
     await put(MANIFEST_KEY, JSON.stringify(artworks, null, 2), {
       access: "public",
