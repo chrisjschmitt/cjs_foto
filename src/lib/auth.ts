@@ -2,14 +2,8 @@ import { NextResponse } from "next/server";
 
 const TOKEN_HEADER = "x-admin-token";
 
-export function generateToken(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-const validTokens: Set<string> = new Set();
-
-export function addToken(token: string) {
-  validTokens.add(token);
+export function createToken(password: string): string {
+  return Buffer.from(`cjs:${password}`).toString("base64");
 }
 
 export function checkPassword(password: string): boolean {
@@ -19,9 +13,18 @@ export function checkPassword(password: string): boolean {
 }
 
 export function verifyRequest(request: Request): boolean {
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminPassword) return false;
+
   const token = request.headers.get(TOKEN_HEADER);
   if (!token) return false;
-  return validTokens.has(token);
+
+  try {
+    const decoded = Buffer.from(token, "base64").toString();
+    return decoded === `cjs:${adminPassword}`;
+  } catch {
+    return false;
+  }
 }
 
 export function unauthorizedResponse() {

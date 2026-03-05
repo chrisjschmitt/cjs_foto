@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkPassword, generateToken, addToken } from "@/lib/auth";
+import { checkPassword, createToken } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const { password } = await request.json();
@@ -15,8 +15,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Incorrect password." }, { status: 401 });
   }
 
-  const token = generateToken();
-  addToken(token);
-
+  const token = createToken(password);
   return NextResponse.json({ token });
 }
