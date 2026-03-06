@@ -42,6 +42,7 @@ export default function AdminPage() {
   const [statementPreview, setStatementPreview] = useState(false);
   const [savingStatement, setSavingStatement] = useState(false);
   const [editingStatement, setEditingStatement] = useState(false);
+  const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
   const toastId = useRef(0);
@@ -417,10 +418,33 @@ export default function AdminPage() {
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="text-xs tracking-widest uppercase text-warm-500">Body (Markdown)</label>
-                <button onClick={() => setStatementPreview(!statementPreview)} className="text-[10px] tracking-widest uppercase text-warm-400 active:text-warm-900">
-                  {statementPreview ? "Edit" : "Preview"}
-                </button>
+                <div className="flex gap-3">
+                  <button onClick={() => setStatementPreview(!statementPreview)} className="text-[10px] tracking-widest uppercase text-warm-400 active:text-warm-900">
+                    {statementPreview ? "Edit" : "Preview"}
+                  </button>
+                  <button onClick={() => setShowMarkdownHelp(!showMarkdownHelp)} className="text-[10px] tracking-widest uppercase text-warm-400 active:text-warm-900">
+                    {showMarkdownHelp ? "Hide Help" : "Help"}
+                  </button>
+                </div>
               </div>
+              {showMarkdownHelp && (
+                <div className="mb-3 rounded-sm border border-warm-200 bg-warm-50 p-4 text-xs text-warm-600">
+                  <p className="mb-2 text-[10px] font-medium tracking-widest uppercase text-warm-500">Markdown Reference</p>
+                  <table className="w-full">
+                    <tbody className="divide-y divide-warm-200">
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">**bold text**</td><td className="py-1.5"><strong>bold text</strong></td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">*italic text*</td><td className="py-1.5"><em>italic text</em></td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">[link text](https://url)</td><td className="py-1.5"><span className="text-warm-500 underline">link text</span></td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">### Heading</td><td className="py-1.5 font-semibold">Heading</td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">- item one</td><td className="py-1.5">&bull; item one</td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">1. item one</td><td className="py-1.5">1. item one</td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">&gt; quoted text</td><td className="py-1.5 border-l-2 border-warm-300 pl-2 italic">quoted text</td></tr>
+                      <tr><td className="py-1.5 pr-4 font-mono text-warm-900">---</td><td className="py-1.5">horizontal rule</td></tr>
+                    </tbody>
+                  </table>
+                  <p className="mt-2 text-warm-400">Separate paragraphs with a blank line.</p>
+                </div>
+              )}
               {statementPreview ? (
                 <div className="prose-warm min-h-[12rem] rounded-sm border border-warm-200 bg-warm-50 p-4 text-sm leading-relaxed text-warm-700" dangerouslySetInnerHTML={{ __html: marked.parse(statementBody) as string }} />
               ) : (
