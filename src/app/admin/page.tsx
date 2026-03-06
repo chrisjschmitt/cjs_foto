@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { StoredArtwork, ImageMeta } from "@/lib/portfolio-data";
+import type { StoredArtwork, ImageMeta, SiteSettings } from "@/lib/portfolio-data";
 import { normalizeImage, imageUrl } from "@/lib/portfolio-data";
+import { marked } from "marked";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -36,6 +37,11 @@ export default function AdminPage() {
   const [deletingImage, setDeletingImage] = useState<string | null>(null);
   const [deletingSeries, setDeletingSeries] = useState<string | null>(null);
   const [toasts, setToasts] = useState<{ id: number; type: "success" | "error"; text: string }[]>([]);
+  const [statementTitle, setStatementTitle] = useState("About My Work");
+  const [statementBody, setStatementBody] = useState("");
+  const [statementPreview, setStatementPreview] = useState(false);
+  const [savingStatement, setSavingStatement] = useState(false);
+  const [editingStatement, setEditingStatement] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
   const toastId = useRef(0);
@@ -59,7 +65,12 @@ export default function AdminPage() {
     setAuthLoading(false);
   }, []);
 
-  useEffect(() => { if (token) fetchArtworks(); }, [token]);
+  useEffect(() => {
+    if (token) {
+      fetchArtworks();
+      fetchStatement();
+    }
+  }, [token]);
 
   function authHeaders(): HeadersInit {
     return token ? { "x-admin-token": token } : {};
@@ -98,6 +109,38 @@ export default function AdminPage() {
       else toast("error", "Failed to load portfolio.");
     } catch { toast("error", "Failed to load portfolio."); }
     finally { setLoading(false); }
+  }
+
+  async function fetchStatement() {
+    try {
+      const res = await fetch("/api/settings", { cache: "no-store" });
+      if (res.ok) {
+        const data: SiteSettings = await res.json();
+        setStatementTitle(data.statementTitle || "About My Work");
+        setStatementBody(data.statementBody || "");
+      }
+    } catch { /* use defaults */ }
+  }
+
+  async function handleSaveStatement() {
+    setSavingStatement(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ statementTitle, statementBody }),
+      });
+      if (res.ok) {
+        toast("success", "Artist statement saved.");
+        setEditingStatement(false);
+      } else {
+        toast("error", "Failed to save statement.");
+      }
+    } catch {
+      toast("error", "Failed to save statement.");
+    } finally {
+      setSavingStatement(false);
+    }
   }
 
   function handleFilesSelected(e: React.ChangeEvent<HTMLInputElement>, target: "create" | "add") {
@@ -355,6 +398,53 @@ export default function AdminPage() {
           <Link href="/" className="text-sm tracking-widest uppercase text-warm-500 active:text-warm-900">&larr; View Site</Link>
           <button onClick={handleLogout} className="text-sm tracking-widest uppercase text-warm-400 active:text-red-600">Logout</button>
         </div>
+      </div>
+
+      {/* Artist Statement */}
+      <div className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-serif text-xl text-warm-900">Artist Statement</h2>
+          {!editingStatement && (
+            <button onClick={() => setEditingStatement(true)} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">Edit</button>
+          )}
+        </div>
+        {editingStatement ? (
+          <div className="space-y-4">
+            <div>
+              <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Title</label>
+              <input type="text" value={statementTitle} onChange={(e) => setStatementTitle(e.target.value)} className={ic} />
+            </div>
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-xs tracking-widest uppercase text-warm-500">Body (Markdown)</label>
+                <button onClick={() => setStatementPreview(!statementPreview)} className="text-[10px] tracking-widest uppercase text-warm-400 active:text-warm-900">
+                  {statementPreview ? "Edit" : "Preview"}
+                </button>
+              </div>
+              {statementPreview ? (
+                <div className="prose-warm min-h-[12rem] rounded-sm border border-warm-200 bg-warm-50 p-4 text-sm leading-relaxed text-warm-700" dangerouslySetInnerHTML={{ __html: marked.parse(statementBody) as string }} />
+              ) : (
+                <textarea
+                  value={statementBody}
+                  onChange={(e) => setStatementBody(e.target.value)}
+                  rows={10}
+                  placeholder="Write your artist statement here. Supports **bold**, *italic*, [links](url), lists, and more."
+                  className={`${ic} resize-y font-mono text-sm`}
+                />
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={handleSaveStatement} disabled={savingStatement} className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">
+                {savingStatement ? "Saving..." : "Save Statement"}
+              </button>
+              <button onClick={() => { setEditingStatement(false); fetchStatement(); }} className="rounded-sm border border-warm-200 px-5 py-2 text-xs tracking-widest uppercase text-warm-500">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="prose-warm text-sm leading-relaxed text-warm-700" dangerouslySetInnerHTML={{ __html: statementBody ? marked.parse(statementBody) as string : "<p class='text-warm-400 italic'>No statement yet. Click Edit to add one.</p>" }} />
+        )}
       </div>
 
       {/* Create new series */}
