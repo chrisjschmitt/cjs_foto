@@ -30,25 +30,23 @@ export default function Acknowledgements() {
   return (
     <section className="border-t border-warm-200 bg-warm-50 py-16">
       <div className="mx-auto max-w-4xl px-6 lg:px-8">
-        <p className="mb-8 text-center text-xs tracking-[0.4em] uppercase text-warm-500">
-          Acknowledgements
-        </p>
-
         {logos.length > 0 && (
-          <div className="mb-8 flex flex-wrap items-center justify-center gap-8">
-            {logos.map((logo) => (
-              <div key={logo.url} className="flex-shrink-0">
-                {logo.link ? (
-                  <a href={logo.link} target="_blank" rel="noopener noreferrer" title={logo.name}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={logo.url} alt={logo.name} className="h-16 w-auto object-contain opacity-70 transition-opacity hover:opacity-100" />
-                  </a>
-                ) : (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={logo.url} alt={logo.name} className="h-16 w-auto object-contain opacity-70" />
-                )}
-              </div>
-            ))}
+          <div className={html ? "mb-8" : ""}>
+            <div className="flex flex-wrap items-center justify-center gap-10">
+              {logos.map((logo) => (
+                <div key={logo.url} className="flex-shrink-0">
+                  {logo.link ? (
+                    <a href={logo.link} target="_blank" rel="noopener noreferrer" title={logo.name}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logo.url} alt={logo.name} className="h-28 w-auto object-contain opacity-80 transition-opacity hover:opacity-100 sm:h-32" />
+                    </a>
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={logo.url} alt={logo.name} className="h-28 w-auto object-contain opacity-80 sm:h-32" />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
