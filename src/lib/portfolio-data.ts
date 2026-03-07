@@ -127,14 +127,24 @@ export async function deleteArtworkImage(imageUrl: string): Promise<void> {
 
 const SETTINGS_KEY = "portfolio/settings.json";
 
+export interface GrantorLogo {
+  url: string;
+  name: string;
+  link?: string;
+}
+
 export interface SiteSettings {
   statementTitle: string;
   statementBody: string;
+  acknowledgements?: string;
+  grantorLogos?: GrantorLogo[];
 }
 
 const DEFAULT_SETTINGS: SiteSettings = {
   statementTitle: "About My Work",
   statementBody: "",
+  acknowledgements: "",
+  grantorLogos: [],
 };
 
 export async function getSiteSettings(): Promise<SiteSettings> {

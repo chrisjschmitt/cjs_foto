@@ -43,6 +43,13 @@ export default function AdminPage() {
   const [savingStatement, setSavingStatement] = useState(false);
   const [editingStatement, setEditingStatement] = useState(false);
   const [showMarkdownHelp, setShowMarkdownHelp] = useState(false);
+  const [ackText, setAckText] = useState("");
+  const [ackLogos, setAckLogos] = useState<{ url: string; name: string; link?: string }[]>([]);
+  const [editingAck, setEditingAck] = useState(false);
+  const [ackPreview, setAckPreview] = useState(false);
+  const [savingAck, setSavingAck] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
   const toastId = useRef(0);
@@ -119,8 +126,14 @@ export default function AdminPage() {
         const data: SiteSettings = await res.json();
         setStatementTitle(data.statementTitle || "About My Work");
         setStatementBody(data.statementBody || "");
+        setAckText(data.acknowledgements || "");
+        setAckLogos(data.grantorLogos || []);
       }
     } catch { /* use defaults */ }
+  }
+
+  function currentSettings(): SiteSettings {
+    return { statementTitle, statementBody, acknowledgements: ackText, grantorLogos: ackLogos };
   }
 
   async function handleSaveStatement() {
@@ -129,7 +142,7 @@ export default function AdminPage() {
       const res = await fetch("/api/settings", {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ statementTitle, statementBody }),
+        body: JSON.stringify(currentSettings()),
       });
       if (res.ok) {
         toast("success", "Artist statement saved.");
@@ -141,6 +154,58 @@ export default function AdminPage() {
       toast("error", "Failed to save statement.");
     } finally {
       setSavingStatement(false);
+    }
+  }
+
+  async function handleUploadLogo() {
+    const file = logoFileRef.current?.files?.[0];
+    if (!file) { toast("error", "Select a logo image."); return; }
+
+    setUploadingLogo(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload-image", { method: "POST", body: fd, headers: authHeaders() });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+
+      const name = file.name.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
+      setAckLogos((prev) => [...prev, { url: data.url, name, link: "" }]);
+      if (logoFileRef.current) logoFileRef.current.value = "";
+      toast("success", "Logo uploaded. Fill in the name and save.");
+    } catch (err) {
+      toast("error", err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  function removeAckLogo(idx: number) {
+    setAckLogos((prev) => prev.filter((_, i) => i !== idx));
+  }
+
+  function updateAckLogo(idx: number, field: string, value: string) {
+    setAckLogos((prev) => prev.map((l, i) => i === idx ? { ...l, [field]: value } : l));
+  }
+
+  async function handleSaveAck() {
+    setSavingAck(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(currentSettings()),
+      });
+      if (res.ok) {
+        toast("success", "Acknowledgements saved.");
+        setEditingAck(false);
+      } else {
+        toast("error", "Failed to save.");
+      }
+    } catch {
+      toast("error", "Failed to save.");
+    } finally {
+      setSavingAck(false);
     }
   }
 
@@ -468,6 +533,89 @@ export default function AdminPage() {
           </div>
         ) : (
           <div className="prose-warm text-sm leading-relaxed text-warm-700" dangerouslySetInnerHTML={{ __html: statementBody ? marked.parse(statementBody) as string : "<p class='text-warm-400 italic'>No statement yet. Click Edit to add one.</p>" }} />
+        )}
+      </div>
+
+      {/* Acknowledgements */}
+      <div className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="font-serif text-xl text-warm-900">Grant Acknowledgements</h2>
+          {!editingAck && (
+            <button onClick={() => setEditingAck(true)} className="text-xs tracking-widest uppercase text-warm-500 active:text-warm-900">Edit</button>
+          )}
+        </div>
+        {editingAck ? (
+          <div className="space-y-5">
+            {/* Logos */}
+            <div>
+              <label className="mb-2 block text-xs tracking-widest uppercase text-warm-500">Grantor Logos</label>
+              {ackLogos.length > 0 && (
+                <div className="mb-3 space-y-2">
+                  {ackLogos.map((logo, idx) => (
+                    <div key={idx} className="flex items-center gap-3 rounded-sm border border-warm-100 bg-warm-50 p-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={logo.url} alt={logo.name} className="h-10 w-auto flex-shrink-0 object-contain" />
+                      <input type="text" value={logo.name} onChange={(e) => updateAckLogo(idx, "name", e.target.value)} placeholder="Grantor name" className={`${ic} flex-1`} />
+                      <input type="text" value={logo.link || ""} onChange={(e) => updateAckLogo(idx, "link", e.target.value)} placeholder="Website URL (optional)" className={`${ic} flex-1`} />
+                      <button onClick={() => removeAckLogo(idx)} className="flex-shrink-0 text-lg text-red-400 active:text-red-600">&times;</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <input ref={logoFileRef} type="file" className="text-sm text-warm-700 file:mr-3 file:rounded-full file:border-0 file:bg-warm-100 file:px-4 file:py-1 file:text-xs file:text-warm-700" />
+                <button onClick={handleUploadLogo} disabled={uploadingLogo} className="flex-shrink-0 rounded-sm bg-warm-900 px-4 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">
+                  {uploadingLogo ? "Uploading..." : "Upload Logo"}
+                </button>
+              </div>
+            </div>
+
+            {/* Statement */}
+            <div>
+              <div className="mb-1 flex items-center justify-between">
+                <label className="text-xs tracking-widest uppercase text-warm-500">Statement (Markdown, optional)</label>
+                <button onClick={() => setAckPreview(!ackPreview)} className="text-[10px] tracking-widest uppercase text-warm-400 active:text-warm-900">
+                  {ackPreview ? "Edit" : "Preview"}
+                </button>
+              </div>
+              {ackPreview ? (
+                <div className="prose-warm min-h-[6rem] rounded-sm border border-warm-200 bg-warm-50 p-4 text-sm leading-relaxed text-warm-700" dangerouslySetInnerHTML={{ __html: ackText ? marked.parse(ackText) as string : "<p class='italic text-warm-400'>No statement.</p>" }} />
+              ) : (
+                <textarea
+                  value={ackText}
+                  onChange={(e) => setAckText(e.target.value)}
+                  rows={4}
+                  placeholder="e.g. This project was made possible with support from..."
+                  className={`${ic} resize-y font-mono text-sm`}
+                />
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={handleSaveAck} disabled={savingAck} className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800 disabled:opacity-50">
+                {savingAck ? "Saving..." : "Save Acknowledgements"}
+              </button>
+              <button onClick={() => { setEditingAck(false); fetchStatement(); }} className="rounded-sm border border-warm-200 px-5 py-2 text-xs tracking-widest uppercase text-warm-500">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            {ackLogos.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-6">
+                {ackLogos.map((logo, idx) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img key={idx} src={logo.url} alt={logo.name} className="h-12 w-auto object-contain opacity-70" />
+                ))}
+              </div>
+            )}
+            {ackText ? (
+              <div className="prose-warm text-sm leading-relaxed text-warm-700" dangerouslySetInnerHTML={{ __html: marked.parse(ackText) as string }} />
+            ) : ackLogos.length === 0 ? (
+              <p className="text-sm italic text-warm-400">No acknowledgements yet. Click Edit to add grantor logos and statements.</p>
+            ) : null}
+          </div>
         )}
       </div>
 
