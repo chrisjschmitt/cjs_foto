@@ -20,22 +20,26 @@ export default function Portfolio() {
   const [lightbox, setLightbox] = useState<ArtworkItem | null>(null);
 
   useEffect(() => {
-    fetch("/api/portfolio", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : []))
-      .then((data) => {
-        const mapped: ArtworkItem[] = data.map(
-          (a: StoredArtwork & { imageUrl?: string }) => ({
-            id: a.id,
-            title: a.title,
-            category: a.category,
-            year: a.year,
-            description: a.description,
-            images: a.images || (a.imageUrl ? [a.imageUrl] : []),
-          })
-        );
-        setArtworks(mapped);
-      })
-      .catch(() => {});
+    Promise.all([
+      fetch("/api/portfolio", { cache: "no-store" }).then((res) => (res.ok ? res.json() : [])),
+      fetch("/api/settings", { cache: "no-store" }).then((res) => (res.ok ? res.json() : null)).catch(() => null),
+    ]).then(([portfolioData, settings]) => {
+      const mapped: ArtworkItem[] = portfolioData.map(
+        (a: StoredArtwork & { imageUrl?: string }) => ({
+          id: a.id,
+          title: a.title,
+          category: a.category,
+          year: a.year,
+          description: a.description,
+          images: a.images || (a.imageUrl ? [a.imageUrl] : []),
+        })
+      );
+      setArtworks(mapped);
+      if (settings?.defaultCategory) {
+        const exists = mapped.some((a) => a.category === settings.defaultCategory);
+        if (exists) setActive(settings.defaultCategory);
+      }
+    }).catch(() => {});
   }, []);
 
   const categories = [

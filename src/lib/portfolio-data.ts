@@ -138,6 +138,7 @@ export interface SiteSettings {
   statementBody: string;
   acknowledgements?: string;
   grantorLogos?: GrantorLogo[];
+  defaultCategory?: string;
 }
 
 const DEFAULT_SETTINGS: SiteSettings = {

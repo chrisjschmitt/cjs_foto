@@ -49,6 +49,7 @@ export default function AdminPage() {
   const [ackPreview, setAckPreview] = useState(false);
   const [savingAck, setSavingAck] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [defaultCategory, setDefaultCategory] = useState("");
   const logoFileRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const addFileRef = useRef<HTMLInputElement>(null);
@@ -128,12 +129,13 @@ export default function AdminPage() {
         setStatementBody(data.statementBody || "");
         setAckText(data.acknowledgements || "");
         setAckLogos(data.grantorLogos || []);
+        setDefaultCategory(data.defaultCategory || "");
       }
     } catch { /* use defaults */ }
   }
 
   function currentSettings(): SiteSettings {
-    return { statementTitle, statementBody, acknowledgements: ackText, grantorLogos: ackLogos };
+    return { statementTitle, statementBody, acknowledgements: ackText, grantorLogos: ackLogos, defaultCategory: defaultCategory || undefined };
   }
 
   async function handleSaveStatement() {
@@ -618,6 +620,41 @@ export default function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Default category */}
+      {artworks.length > 0 && (
+        <div className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
+          <h2 className="mb-4 font-serif text-xl text-warm-900">Portfolio Settings</h2>
+          <div className="flex items-end gap-4">
+            <div className="flex-grow">
+              <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Default Category</label>
+              <select
+                value={defaultCategory}
+                onChange={(e) => setDefaultCategory(e.target.value)}
+                className={ic}
+              >
+                <option value="">All (show everything)</option>
+                {Array.from(new Set(artworks.map((a) => a.category))).map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  const res = await fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(currentSettings()) });
+                  if (res.ok) toast("success", "Default category saved.");
+                  else toast("error", "Failed to save.");
+                } catch { toast("error", "Failed to save."); }
+              }}
+              className="rounded-sm bg-warm-900 px-5 py-2 text-xs tracking-widest uppercase text-warm-50 hover:bg-warm-800"
+            >
+              Save
+            </button>
+          </div>
+          <p className="mt-2 text-xs text-warm-400">The portfolio will show this category by default when visitors land on the page.</p>
+        </div>
+      )}
 
       {/* Create new series */}
       <form onSubmit={handleCreateSeries} noValidate className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
