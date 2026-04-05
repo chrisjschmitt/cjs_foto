@@ -1,6 +1,6 @@
 export default function Footer() {
   return (
-    <footer id="contact" className="border-t border-warm-200 bg-warm-100/50">
+    <footer id="contact" className="scroll-mt-20 border-t border-warm-200 bg-warm-100/50">
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8">
         <div className="flex flex-col items-center gap-8 md:flex-row md:justify-between">
           <div>
@@ -16,18 +16,18 @@ export default function Footer() {
             >
               chris@chrisjschmitt.com
             </a>
-            <div className="flex gap-6">
+            <div className="flex gap-4 sm:gap-6">
               <a
                 href="https://www.instagram.com/cjs_foto"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
+                className="inline-flex min-h-[44px] items-center text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
               >
                 Instagram
               </a>
               <a
                 href="#"
-                className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
+                className="inline-flex min-h-[44px] items-center text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
               >
                 Behance
               </a>
@@ -35,7 +35,7 @@ export default function Footer() {
                 href="/cv.pdf"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
+                className="inline-flex min-h-[44px] items-center text-xs tracking-widest uppercase text-warm-400 transition-colors hover:text-warm-700"
               >
                 CV
               </a>

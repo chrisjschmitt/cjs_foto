@@ -18,30 +18,31 @@ export default function Header() {
           ? "bg-warm-50/90 backdrop-blur-md shadow-sm"
           : "bg-transparent"
       }`}
+      style={{ paddingTop: "env(safe-area-inset-top)" }}
     >
-      <nav className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
+      <nav className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-3 sm:flex-nowrap sm:gap-8 sm:px-6 sm:py-5 lg:px-8">
         <a
           href="#"
-          className="font-serif text-xl tracking-wide text-warm-900 hover:text-warm-600 transition-colors"
+          className="font-serif text-lg tracking-wide text-warm-900 transition-colors hover:text-warm-600 sm:text-xl"
         >
           Christopher Schmitt Photos
         </a>
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 sm:gap-8">
           <a
             href="#statement"
-            className="text-sm tracking-widest uppercase text-warm-600 hover:text-warm-900 transition-colors"
+            className="min-h-[44px] flex items-center text-xs tracking-widest uppercase text-warm-600 transition-colors hover:text-warm-900 sm:text-sm"
           >
             Statement
           </a>
           <a
             href="#portfolio"
-            className="text-sm tracking-widest uppercase text-warm-600 hover:text-warm-900 transition-colors"
+            className="min-h-[44px] flex items-center text-xs tracking-widest uppercase text-warm-600 transition-colors hover:text-warm-900 sm:text-sm"
           >
             Portfolio
           </a>
           <a
             href="#contact"
-            className="text-sm tracking-widest uppercase text-warm-600 hover:text-warm-900 transition-colors"
+            className="min-h-[44px] flex items-center text-xs tracking-widest uppercase text-warm-600 transition-colors hover:text-warm-900 sm:text-sm"
           >
             Contact
           </a>

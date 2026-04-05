@@ -32,7 +32,7 @@ export default function ArtistStatement() {
   }, []);
 
   return (
-    <section id="statement" className="bg-warm-100/50 py-28 lg:py-36">
+    <section id="statement" className="scroll-mt-20 bg-warm-100/50 py-28 lg:py-36">
       <div className="mx-auto max-w-3xl px-6 lg:px-8">
         <p className="mb-4 text-center text-xs tracking-[0.4em] uppercase text-warm-500">
           Artist Statement

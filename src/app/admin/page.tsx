@@ -403,7 +403,7 @@ export default function AdminPage() {
   }
 
   const ic = "w-full rounded-sm border border-warm-200 px-3 py-2 text-sm text-warm-900 placeholder:text-warm-300 focus:border-warm-400 focus:outline-none";
-  const btn7 = "flex h-7 w-7 items-center justify-center rounded-sm text-sm transition-colors";
+  const btn7 = "flex h-9 w-9 items-center justify-center rounded-sm text-sm transition-colors sm:h-7 sm:w-7";
 
   function renderPendingList(items: PendingImage[], target: "create" | "add") {
     if (items.length === 0) return null;
@@ -497,7 +497,7 @@ export default function AdminPage() {
               {showMarkdownHelp && (
                 <div className="mb-3 rounded-sm border border-warm-200 bg-warm-50 p-4 text-xs text-warm-600">
                   <p className="mb-2 text-[10px] font-medium tracking-widest uppercase text-warm-500">Markdown Reference</p>
-                  <table className="w-full">
+                  <div className="overflow-x-auto"><table className="w-full">
                     <tbody className="divide-y divide-warm-200">
                       <tr><td className="py-1.5 pr-4 font-mono text-warm-900">**bold text**</td><td className="py-1.5"><strong>bold text</strong></td></tr>
                       <tr><td className="py-1.5 pr-4 font-mono text-warm-900">*italic text*</td><td className="py-1.5"><em>italic text</em></td></tr>
@@ -508,7 +508,7 @@ export default function AdminPage() {
                       <tr><td className="py-1.5 pr-4 font-mono text-warm-900">&gt; quoted text</td><td className="py-1.5 border-l-2 border-warm-300 pl-2 italic">quoted text</td></tr>
                       <tr><td className="py-1.5 pr-4 font-mono text-warm-900">---</td><td className="py-1.5">horizontal rule</td></tr>
                     </tbody>
-                  </table>
+                  </table></div>
                   <p className="mt-2 text-warm-400">Separate paragraphs with a blank line.</p>
                 </div>
               )}
@@ -554,12 +554,12 @@ export default function AdminPage() {
               {ackLogos.length > 0 && (
                 <div className="mb-3 space-y-2">
                   {ackLogos.map((logo, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-sm border border-warm-100 bg-warm-50 p-3">
+                    <div key={idx} className="flex flex-col gap-2 rounded-sm border border-warm-100 bg-warm-50 p-3 sm:flex-row sm:items-center sm:gap-3">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={logo.url} alt={logo.name} className="h-10 w-auto flex-shrink-0 object-contain" />
-                      <input type="text" value={logo.name} onChange={(e) => updateAckLogo(idx, "name", e.target.value)} placeholder="Grantor name" className={`${ic} flex-1`} />
-                      <input type="text" value={logo.link || ""} onChange={(e) => updateAckLogo(idx, "link", e.target.value)} placeholder="Website URL (optional)" className={`${ic} flex-1`} />
-                      <button onClick={() => removeAckLogo(idx)} className="flex-shrink-0 text-lg text-red-400 active:text-red-600">&times;</button>
+                      <input type="text" value={logo.name} onChange={(e) => updateAckLogo(idx, "name", e.target.value)} placeholder="Grantor name" className={`${ic} sm:flex-1`} />
+                      <input type="text" value={logo.link || ""} onChange={(e) => updateAckLogo(idx, "link", e.target.value)} placeholder="Website URL (optional)" className={`${ic} sm:flex-1`} />
+                      <button onClick={() => removeAckLogo(idx)} className="flex-shrink-0 self-end text-lg text-red-400 active:text-red-600 sm:self-auto">&times;</button>
                     </div>
                   ))}
                 </div>
@@ -625,7 +625,7 @@ export default function AdminPage() {
       {artworks.length > 0 && (
         <div className="mb-16 rounded-sm border border-warm-200 bg-white p-6 sm:p-8">
           <h2 className="mb-4 font-serif text-xl text-warm-900">Portfolio Settings</h2>
-          <div className="flex items-end gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
             <div className="flex-grow">
               <label className="mb-1 block text-xs tracking-widest uppercase text-warm-500">Default Category</label>
               <select
@@ -789,7 +789,7 @@ export default function AdminPage() {
       )}
 
       {/* Toasts */}
-      <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2">
+      <div className="fixed left-1/2 z-50 flex -translate-x-1/2 flex-col items-center gap-2" style={{ bottom: "max(1rem, env(safe-area-inset-bottom))" }}>
         {toasts.map((t) => (
           <div key={t.id} className={`animate-[fadeInUp_0.3s_ease-out] rounded-lg px-5 py-3 text-sm font-medium shadow-lg ${t.type === "success" ? "bg-warm-900 text-warm-50" : "bg-red-600 text-white"}`}>
             {t.type === "success" ? "\u2713 " : "\u2717 "}{t.text}

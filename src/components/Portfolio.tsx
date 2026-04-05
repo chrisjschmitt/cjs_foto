@@ -56,7 +56,7 @@ export default function Portfolio() {
 
   return (
     <>
-      <section id="portfolio" className="py-28 lg:py-36">
+      <section id="portfolio" className="scroll-mt-20 py-28 lg:py-36">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <p className="mb-4 text-center text-xs tracking-[0.4em] uppercase text-warm-500">
             Selected Works
@@ -67,15 +67,15 @@ export default function Portfolio() {
 
           {artworks.length > 0 && (
             <>
-              <div className="mb-14 flex flex-wrap items-center justify-center gap-3">
+              <div className="mb-14 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                 {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setActive(cat)}
-                    className={`rounded-full px-5 py-2 text-xs tracking-widest uppercase transition-all ${
+                    className={`min-h-[44px] rounded-full px-4 py-2 text-xs tracking-widest uppercase transition-all sm:px-5 ${
                       active === cat
                         ? "bg-warm-900 text-warm-50"
-                        : "bg-warm-100 text-warm-600 hover:bg-warm-200"
+                        : "bg-warm-100 text-warm-600 hover:bg-warm-200 active:bg-warm-200"
                     }`}
                   >
                     {cat}
