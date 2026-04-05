@@ -47,10 +47,12 @@ export default function Portfolio() {
     ...Array.from(new Set(artworks.map((a) => a.category))),
   ];
 
+  const sorted = [...artworks].sort((a, b) => b.year.localeCompare(a.year));
+
   const filtered =
     active === "All"
-      ? artworks
-      : artworks.filter((a) => a.category === active);
+      ? sorted
+      : sorted.filter((a) => a.category === active);
 
   return (
     <>
