@@ -9,25 +9,20 @@ import {
 import type { StoredArtwork } from "@/lib/portfolio-data";
 import { verifyRequest, unauthorizedResponse } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 function tryRevalidate() {
-  try { revalidatePath("/"); } catch { /* non-critical */ }
-}
-
-function jsonResponse(data: unknown) {
-  return NextResponse.json(data, {
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-      "CDN-Cache-Control": "no-store",
-      "Vercel-CDN-Cache-Control": "no-store",
-    },
-  });
+  try {
+    revalidatePath("/");
+    revalidatePath("/api/site-data");
+    revalidatePath("/api/portfolio");
+    revalidatePath("/api/settings");
+  } catch { /* non-critical */ }
 }
 
 export async function GET() {
   const artworks = await getPortfolioManifest();
-  return jsonResponse(artworks);
+  return NextResponse.json(artworks);
 }
 
 export async function DELETE(request: Request) {
@@ -44,7 +39,7 @@ export async function DELETE(request: Request) {
       );
       await savePortfolioManifest(updated);
       tryRevalidate();
-      return jsonResponse({ ok: true });
+      return NextResponse.json({ ok: true });
     }
 
     const artwork = artworks.find((a) => a.id === id);
@@ -53,7 +48,7 @@ export async function DELETE(request: Request) {
     }
     await savePortfolioManifest(artworks);
     tryRevalidate();
-    return jsonResponse({ ok: true });
+    return NextResponse.json({ ok: true });
   }
 
   const artwork = artworks.find((a) => a.id === id);
@@ -64,7 +59,7 @@ export async function DELETE(request: Request) {
   const updated = artworks.filter((a) => a.id !== id);
   await savePortfolioManifest(updated);
   tryRevalidate();
-  return jsonResponse({ ok: true });
+  return NextResponse.json({ ok: true });
 }
 
 export async function PUT(request: Request) {
@@ -86,5 +81,5 @@ export async function PUT(request: Request) {
 
   await savePortfolioManifest(updated);
   tryRevalidate();
-  return jsonResponse({ ok: true });
+  return NextResponse.json({ ok: true });
 }

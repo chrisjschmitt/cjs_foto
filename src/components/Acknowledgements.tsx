@@ -1,31 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { marked } from "marked";
-import type { SiteSettings, GrantorLogo } from "@/lib/portfolio-data";
+import type { SiteSettings } from "@/lib/portfolio-data";
 
-export default function Acknowledgements() {
-  const [html, setHtml] = useState("");
-  const [logos, setLogos] = useState<GrantorLogo[]>([]);
-  const [visible, setVisible] = useState(false);
+interface Props {
+  settings: SiteSettings | null;
+}
 
-  useEffect(() => {
-    fetch("/api/settings", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: SiteSettings | null) => {
-        if (!data) return;
-        const hasLogos = data.grantorLogos && data.grantorLogos.length > 0;
-        const hasText = data.acknowledgements && data.acknowledgements.trim();
-        if (!hasLogos && !hasText) return;
+export default function Acknowledgements({ settings }: Props) {
+  const logos = settings?.grantorLogos || [];
+  const ackText = settings?.acknowledgements || "";
+  const html = useMemo(() => (ackText ? (marked.parse(ackText) as string) : ""), [ackText]);
 
-        setVisible(true);
-        if (data.grantorLogos) setLogos(data.grantorLogos);
-        if (hasText) setHtml(marked.parse(data.acknowledgements!) as string);
-      })
-      .catch(() => {});
-  }, []);
-
-  if (!visible) return null;
+  if (logos.length === 0 && !ackText) return null;
 
   return (
     <section className="border-t border-warm-200 bg-warm-50 py-16">

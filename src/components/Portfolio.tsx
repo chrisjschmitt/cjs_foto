@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import PortfolioCard from "./PortfolioCard";
 import Lightbox from "./Lightbox";
-import type { StoredArtwork, ImageMeta } from "@/lib/portfolio-data";
+import type { StoredArtwork, ImageMeta, SiteSettings } from "@/lib/portfolio-data";
 
 export interface ArtworkItem {
   id: string;
@@ -14,40 +14,36 @@ export interface ArtworkItem {
   images: (string | ImageMeta)[];
 }
 
-export default function Portfolio() {
-  const [active, setActive] = useState("All");
-  const [artworks, setArtworks] = useState<ArtworkItem[]>([]);
-  const [lightbox, setLightbox] = useState<ArtworkItem | null>(null);
+interface Props {
+  artworks: StoredArtwork[];
+  settings: SiteSettings | null;
+}
 
-  useEffect(() => {
-    Promise.all([
-      fetch("/api/portfolio", { cache: "no-store" }).then((res) => (res.ok ? res.json() : [])),
-      fetch("/api/settings", { cache: "no-store" }).then((res) => (res.ok ? res.json() : null)).catch(() => null),
-    ]).then(([portfolioData, settings]) => {
-      const mapped: ArtworkItem[] = portfolioData.map(
-        (a: StoredArtwork & { imageUrl?: string }) => ({
-          id: a.id,
-          title: a.title,
-          category: a.category,
-          year: a.year,
-          description: a.description,
-          images: a.images || (a.imageUrl ? [a.imageUrl] : []),
-        })
-      );
-      setArtworks(mapped);
-      if (settings?.defaultCategory) {
-        const exists = mapped.some((a) => a.category === settings.defaultCategory);
-        if (exists) setActive(settings.defaultCategory);
-      }
-    }).catch(() => {});
-  }, []);
+export default function Portfolio({ artworks: raw, settings }: Props) {
+  const items: ArtworkItem[] = useMemo(
+    () =>
+      raw.map((a) => ({
+        id: a.id,
+        title: a.title,
+        category: a.category,
+        year: a.year,
+        description: a.description,
+        images: a.images || [],
+      })),
+    [raw]
+  );
+
+  const defaultCat = settings?.defaultCategory || "All";
+  const hasDefault = defaultCat !== "All" && items.some((a) => a.category === defaultCat);
+  const [active, setActive] = useState(hasDefault ? defaultCat : "All");
+  const [lightbox, setLightbox] = useState<ArtworkItem | null>(null);
 
   const categories = [
     "All",
-    ...Array.from(new Set(artworks.map((a) => a.category))),
+    ...Array.from(new Set(items.map((a) => a.category))),
   ];
 
-  const sorted = [...artworks].sort((a, b) => b.year.localeCompare(a.year));
+  const sorted = [...items].sort((a, b) => b.year.localeCompare(a.year));
 
   const filtered =
     active === "All"
@@ -65,7 +61,7 @@ export default function Portfolio() {
             Portfolio
           </h2>
 
-          {artworks.length > 0 && (
+          {items.length > 0 && (
             <>
               <div className="mb-14 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                 {categories.map((cat) => (
@@ -95,7 +91,7 @@ export default function Portfolio() {
             </>
           )}
 
-          {artworks.length === 0 && (
+          {items.length === 0 && (
             <p className="text-center text-warm-400">
               Portfolio coming soon.
             </p>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { marked } from "marked";
+import type { SiteSettings } from "@/lib/portfolio-data";
 
 const FALLBACK_TITLE = "About My Work";
 const FALLBACK_BODY = `My work explores the intersections of science, technology, and art. I'm particularly interested in the impact of disruptive technologies on society, and broach on topics such as climate change, poverty, religion and artificial intelligence. Since I'm too lazy to write, I use art as a way of expressing my thoughts.
@@ -10,26 +11,14 @@ Each image is an invitation to reflect. For example, I may use obsolete technolo
 
 Each image is meticulously constructed from highly detailed photographs. I print my artwork on large format, archival paper. It has been exhibited publicly at the Ottawa Art Gallery, Corridor 45|75, the Ottawa City Hall gallery, at the Summerville Art Festival in New Brunswick, and is held in private collections across Canada. Contact info and CV below.`;
 
-export default function ArtistStatement() {
-  const [title, setTitle] = useState(FALLBACK_TITLE);
-  const [html, setHtml] = useState("");
+interface Props {
+  settings: SiteSettings | null;
+}
 
-  useEffect(() => {
-    fetch("/api/settings", { cache: "no-store" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data) {
-          if (data.statementTitle) setTitle(data.statementTitle);
-          const body = data.statementBody || FALLBACK_BODY;
-          setHtml(marked.parse(body) as string);
-        } else {
-          setHtml(marked.parse(FALLBACK_BODY) as string);
-        }
-      })
-      .catch(() => {
-        setHtml(marked.parse(FALLBACK_BODY) as string);
-      });
-  }, []);
+export default function ArtistStatement({ settings }: Props) {
+  const title = settings?.statementTitle || FALLBACK_TITLE;
+  const body = settings?.statementBody || FALLBACK_BODY;
+  const html = useMemo(() => marked.parse(body) as string, [body]);
 
   return (
     <section id="statement" className="scroll-mt-20 bg-warm-100/50 py-28 lg:py-36">

@@ -1,19 +1,14 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { getSiteSettings, saveSiteSettings } from "@/lib/portfolio-data";
 import type { SiteSettings } from "@/lib/portfolio-data";
 import { verifyRequest, unauthorizedResponse } from "@/lib/auth";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export async function GET() {
   const settings = await getSiteSettings();
-  return NextResponse.json(settings, {
-    headers: {
-      "Cache-Control": "no-store, no-cache, must-revalidate",
-      "CDN-Cache-Control": "no-store",
-      "Vercel-CDN-Cache-Control": "no-store",
-    },
-  });
+  return NextResponse.json(settings);
 }
 
 export async function PUT(request: Request) {
@@ -23,6 +18,11 @@ export async function PUT(request: Request) {
 
   try {
     await saveSiteSettings(body);
+    try {
+      revalidatePath("/");
+      revalidatePath("/api/site-data");
+      revalidatePath("/api/settings");
+    } catch { /* non-critical */ }
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Failed to save";
