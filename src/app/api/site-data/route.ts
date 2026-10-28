@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getPortfolioManifest, getSiteSettings } from "@/lib/portfolio-data";
 
-export const revalidate = 60;
+// Saves call revalidatePath("/api/site-data"), so a long cache is safe.
+export const revalidate = 3600;
 
 export async function GET() {
   const [portfolio, settings] = await Promise.all([

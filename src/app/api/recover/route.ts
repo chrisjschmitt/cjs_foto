@@ -2,10 +2,12 @@ import { NextResponse } from "next/server";
 import { list } from "@vercel/blob";
 import { savePortfolioManifest } from "@/lib/portfolio-data";
 import type { StoredArtwork } from "@/lib/portfolio-data";
+import { verifyRequest, unauthorizedResponse } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!verifyRequest(request)) return unauthorizedResponse();
   const { blobs } = await list({ prefix: "portfolio/images/" });
   const imageUrls = blobs
     .filter((b) => !b.pathname.endsWith(".json"))
@@ -18,6 +20,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!verifyRequest(request)) return unauthorizedResponse();
   const body = await request.json();
   const series: StoredArtwork[] = body.series;
 

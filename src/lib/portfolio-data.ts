@@ -1,4 +1,4 @@
-import { put, list, del } from "@vercel/blob";
+import { put, del } from "@vercel/blob";
 
 export interface ImageMeta {
   url: string;
@@ -28,6 +28,16 @@ export function imageUrl(img: string | ImageMeta): string {
 
 const MANIFEST_KEY = "portfolio/manifest.json";
 
+// JSON files are saved with addRandomSuffix: false, so their URL is fixed and
+// can be built from the store ID in the token (same as @vercel/blob does).
+// This avoids list(), which counts as a Blob Advanced Operation. The ?t= query
+// bypasses the CDN cache so reads right after a save see the new content.
+function freshBlobUrl(pathname: string): string {
+  const [, , , storeId = ""] = (process.env.BLOB_READ_WRITE_TOKEN || "").split("_");
+  if (!storeId) throw new Error("BLOB_READ_WRITE_TOKEN is not set");
+  return `https://${storeId}.public.blob.vercel-storage.com/${pathname}?t=${Date.now()}`;
+}
+
 function wrapError(step: string, err: unknown): never {
   const msg = err instanceof Error ? err.message : String(err);
   throw new Error(`[${step}] ${msg}`);
@@ -35,11 +45,7 @@ function wrapError(step: string, err: unknown): never {
 
 export async function getPortfolioManifest(): Promise<StoredArtwork[]> {
   try {
-    const { blobs } = await list({ prefix: MANIFEST_KEY });
-    if (blobs.length === 0) return [];
-
-    const url = `${blobs[0].url}?t=${Date.now()}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(freshBlobUrl(MANIFEST_KEY), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await res.json();
 
@@ -150,11 +156,7 @@ const DEFAULT_SETTINGS: SiteSettings = {
 
 export async function getSiteSettings(): Promise<SiteSettings> {
   try {
-    const { blobs } = await list({ prefix: SETTINGS_KEY });
-    if (blobs.length === 0) return DEFAULT_SETTINGS;
-
-    const url = `${blobs[0].url}?t=${Date.now()}`;
-    const res = await fetch(url, { cache: "no-store" });
+    const res = await fetch(freshBlobUrl(SETTINGS_KEY), { cache: "no-store" });
     if (!res.ok) return DEFAULT_SETTINGS;
     return { ...DEFAULT_SETTINGS, ...await res.json() };
   } catch {
